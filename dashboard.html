@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Creativify — suas ferramentas de mídia</title>
+<style>
+:root{
+  --bg:#0a0a0d;--surface:#13131a;--surface2:#1c1c26;--border:#1c1c26;--border2:#25253a;
+  --text:#eeeef5;--text2:#8888aa;--text3:#5a5a72;--accent:#7c6dff;--accent2:#a599ff;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',system-ui,sans-serif;}
+::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+.layout{display:flex;min-height:100vh;}
+
+/* Sidebar */
+.sidebar{width:248px;flex-shrink:0;border-right:1px solid var(--border);padding:24px 16px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 24px;}
+.brand-mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#7c6dff,#a599ff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;}
+.brand-name{font-size:18px;font-weight:700;letter-spacing:-.02em;}
+.nav{display:flex;flex-direction:column;gap:2px;}
+.navitem{display:flex;align-items:center;gap:10px;background:none;border:none;color:var(--text2);font-size:13.5px;font-weight:500;cursor:pointer;padding:10px 12px;border-radius:9px;width:100%;text-align:left;transition:.15s;font-family:inherit;}
+.navitem:hover{background:var(--surface);color:#c8c8e0;}
+.navitem.active{background:var(--surface2);color:#fff;}
+.nav-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.nav-count{margin-left:auto;font-size:12px;color:var(--text3);}
+.plan-card{margin-top:auto;background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:16px;}
+.plan-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.plan-label{font-size:13px;font-weight:600;color:#c8c8e0;}
+.usage-bar{height:6px;background:var(--border2);border-radius:3px;overflow:hidden;}
+.usage-fill{height:100%;background:linear-gradient(90deg,#7c6dff,#a599ff);border-radius:3px;width:66%;}
+.usage-text{font-size:12px;color:var(--text2);margin-top:8px;margin-bottom:14px;}
+.upgrade{width:100%;border:none;border-radius:9px;padding:10px;background:linear-gradient(135deg,#7c6dff,#a599ff);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+.upgrade:hover{filter:brightness(1.08);}
+
+/* Main */
+.main{flex:1;padding:28px 32px;max-width:1100px;margin:0 auto;width:100%;}
+.header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:28px;flex-wrap:wrap;}
+h1{font-size:24px;font-weight:800;letter-spacing:-.02em;}
+.sub{font-size:14px;color:var(--text2);margin-top:4px;}
+.search{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border2);border-radius:11px;padding:10px 14px;min-width:260px;}
+.search:focus-within{border-color:var(--accent);}
+.search input{background:none;border:none;outline:none;color:var(--text);font-size:14px;width:100%;font-family:inherit;}
+.search svg{flex-shrink:0;}
+
+.section-head{display:flex;align-items:center;gap:9px;margin-bottom:14px;margin-top:30px;}
+.section-title{font-size:16px;font-weight:700;letter-spacing:-.01em;}
+.cat-tag{width:4px;height:16px;border-radius:2px;}
+.cat-count{font-size:12px;color:var(--text3);background:var(--surface);border-radius:20px;padding:2px 9px;}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;text-decoration:none;color:inherit;}
+.card:hover{transform:translateY(-2px);background:#15151d;}
+.card.locked{cursor:default;opacity:.55;}
+.card.locked:hover{transform:none;background:var(--surface);}
+.card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.card-icon{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;}
+.ready-tag{font-size:10px;font-weight:700;color:#22c97a;background:#22c97a18;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;}
+.soon-tag{font-size:10px;font-weight:700;color:var(--text2);background:#8888aa18;padding:3px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;}
+.card-name{font-size:14px;font-weight:600;margin-bottom:5px;}
+.card-desc{font-size:12.5px;color:var(--text2);line-height:1.45;}
+
+.empty{text-align:center;padding:60px 20px;color:var(--text2);}
+@media(max-width:720px){.sidebar{display:none;}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">C</div>
+      <span class="brand-name">Creativify</span>
+    </div>
+    <nav class="nav" id="nav">
+      <button class="navitem active" data-cat="all">
+        <span class="nav-dot" style="background:#fff"></span>Todas as ferramentas
+        <span class="nav-count">{{ tools|length }}</span>
+      </button>
+      {% for c in categories %}
+      <button class="navitem" data-cat="{{ c.id }}">
+        <span class="nav-dot" style="background:{{ c.color }}"></span>{{ c.label }}
+        <span class="nav-count">{{ tools|selectattr('cat','equalto',c.id)|list|length }}</span>
+      </button>
+      {% endfor %}
+    </nav>
+    <div class="plan-card">
+      <div class="plan-top"><span class="plan-label">Plano Grátis</span>👑</div>
+      <div class="usage-bar"><div class="usage-fill"></div></div>
+      <div class="usage-text">2 de 3 usos hoje</div>
+      <button class="upgrade">⚡ Virar Pro — R$29,90</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <div>
+        <h1>Olá, criador 👋</h1>
+        <p class="sub">{{ tools|length }} ferramentas para acelerar seu conteúdo</p>
+      </div>
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8888aa" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="q" placeholder="Buscar ferramenta..." oninput="filter()">
+      </div>
+    </div>
+
+    {% for c in categories %}
+    <section class="cat-section" data-cat="{{ c.id }}">
+      <div class="section-head">
+        <span class="cat-tag" style="background:{{ c.color }}"></span>
+        <h2 class="section-title">{{ c.label }}</h2>
+        <span class="cat-count">{{ tools|selectattr('cat','equalto',c.id)|list|length }}</span>
+      </div>
+      <div class="grid">
+        {% for t in tools if t.cat == c.id %}
+        {% if t.ready %}
+        <a class="card tool" href="{{ t.url }}" data-name="{{ t.name|lower }}" data-desc="{{ t.desc|lower }}" style="--accent:{{ c.color }}">
+        {% else %}
+        <div class="card tool locked" data-name="{{ t.name|lower }}" data-desc="{{ t.desc|lower }}" style="--accent:{{ c.color }}">
+        {% endif %}
+          <div class="card-top">
+            <span class="card-icon" style="background:{{ c.color }}1c;color:{{ c.color }}">
+              {{ {'Download':'⬇','Eraser':'🧹','Minimize2':'🗜','Scissors':'✂','RefreshCw':'🔄','Music':'🎵','Crop':'📐','Droplet':'💧','Captions':'💬','Wand2':'🪄','FileImage':'🖼','Maximize2':'⤢','Sparkles':'✨','FileOutput':'📄','Combine':'🔗','PenTool':'✍','Edit3':'📝','Mic':'🎙','Subtitles':'📋','Youtube':'▶','Languages':'🌐','VolumeX':'🔇'}[t.icon] or '🛠' }}
+            </span>
+            {% if t.ready %}<span class="ready-tag">No ar</span>{% else %}<span class="soon-tag">Em breve</span>{% endif %}
+          </div>
+          <div class="card-name">{{ t.name }}</div>
+          <div class="card-desc">{{ t.desc }}</div>
+        {% if t.ready %}</a>{% else %}</div>{% endif %}
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+
+    <div class="empty" id="empty" style="display:none">Nenhuma ferramenta encontrada</div>
+  </main>
+</div>
+
+<script>
+var nav = document.getElementById('nav');
+var activeCat = 'all';
+nav.addEventListener('click', function(e){
+  var btn = e.target.closest('.navitem');
+  if(!btn) return;
+  activeCat = btn.dataset.cat;
+  var items = nav.querySelectorAll('.navitem');
+  for(var i=0;i<items.length;i++) items[i].classList.remove('active');
+  btn.classList.add('active');
+  filter();
+});
+function filter(){
+  var q = document.getElementById('q').value.trim().toLowerCase();
+  var sections = document.querySelectorAll('.cat-section');
+  var anyVisible = false;
+  for(var s=0;s<sections.length;s++){
+    var sec = sections[s];
+    var catOk = (activeCat === 'all' || sec.dataset.cat === activeCat);
+    var cards = sec.querySelectorAll('.tool');
+    var visibleInSec = 0;
+    for(var i=0;i<cards.length;i++){
+      var card = cards[i];
+      var match = !q || card.dataset.name.indexOf(q) > -1 || card.dataset.desc.indexOf(q) > -1;
+      var show = catOk && match;
+      card.style.display = show ? 'flex' : 'none';
+      if(show){ visibleInSec++; anyVisible = true; }
+    }
+    sec.style.display = (catOk && visibleInSec > 0) ? '' : 'none';
+  }
+  document.getElementById('empty').style.display = anyVisible ? 'none' : 'block';
+}
+</script>
+</body>
+</html>

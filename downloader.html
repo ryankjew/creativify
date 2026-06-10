@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clipador</title>
+<style>
+:root{
+  --bg:#0a0a0d;--surface:#13131a;--surface2:#1c1c26;--border:#25253a;--border2:#32324a;
+  --text:#eeeef5;--text2:#8888aa;--text3:#44445a;
+  --accent:#7c6dff;--green:#1ed97a;--red:#ff4f4f;--amber:#ffb020;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:48px 16px 40px;}
+.wrap{width:100%;max-width:600px;}
+.header{text-align:center;margin-bottom:32px;}
+.header h1{font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:6px;}
+.header p{font-size:13px;color:var(--text3);}
+.sites{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:12px;}
+.chip{font-size:11px;padding:3px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--text3);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:12px;}
+.row{display:flex;gap:8px;margin-bottom:12px;}
+input[type=text]{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;}
+input[type=text]:focus{border-color:var(--accent);}
+input[type=text]::placeholder{color:var(--text3);}
+.btn-add{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-add:hover{opacity:.85;}
+.url-list{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;max-height:260px;overflow-y:auto;}
+.empty{font-size:12px;color:var(--text3);text-align:center;padding:18px;border:1px dashed var(--border);border-radius:10px;}
+.ui{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;}
+.ui-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--text3);}
+.ui-dot.downloading,.ui-dot.processing{background:var(--accent);animation:pulse 1s infinite;}
+.ui-dot.done{background:var(--green);}
+.ui-dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.ui-info{flex:1;min-width:0;}
+.ui-title{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ui-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.ui-bar{height:2px;background:var(--border);border-radius:1px;margin-top:5px;overflow:hidden;}
+.ui-fill{height:100%;background:var(--accent);border-radius:1px;transition:width .3s;}
+.ui-pct{font-size:11px;color:var(--text3);flex-shrink:0;min-width:30px;text-align:right;}
+.btn-dl{background:var(--green);color:#03150a;border:none;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;}
+.btn-rm{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;flex-shrink:0;}
+.btn-rm:hover{color:var(--red);}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.opt label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);display:block;margin-bottom:6px;}
+select{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:9px 12px;font-size:13px;color:var(--text);outline:none;cursor:pointer;}
+.tog-row{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;cursor:pointer;}
+.tog-row span{font-size:12px;color:var(--text2);flex:1;}
+.tog{width:34px;height:19px;background:var(--border2);border-radius:10px;position:relative;transition:background .2s;flex-shrink:0;}
+.tog.on{background:var(--accent);}
+.tog::after{content:'';position:absolute;width:13px;height:13px;background:#fff;border-radius:50%;top:3px;left:3px;transition:left .2s;}
+.tog.on::after{left:18px;}
+.actions{display:flex;gap:8px;}
+.btn-start{flex:2;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;}
+.btn-start:hover{opacity:.9;}
+.btn-start:disabled{opacity:.35;cursor:not-allowed;}
+.btn-ghost{flex:1;background:transparent;color:var(--text3);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:13px;cursor:pointer;}
+.btn-ghost:hover{background:var(--surface2);}
+.btn-ghost:disabled{opacity:.35;cursor:not-allowed;}
+.stats{display:flex;gap:16px;padding:13px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;font-size:13px;align-items:center;}
+.st{color:var(--text3);}
+.st strong{color:var(--text);}
+.sp{flex:1;}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn-zip{width:100%;background:var(--green);color:#03150a;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:6px;}
+.btn-zip:hover{opacity:.9;}
+.hint{font-size:11px;color:var(--text3);text-align:center;}
+.footer{text-align:center;font-size:11px;color:var(--text3);margin-top:24px;}
+</style>
+</head>
+<body>
+<a href='/' style='position:fixed;top:16px;left:16px;z-index:99;color:#8888aa;text-decoration:none;font:600 13px -apple-system,sans-serif;background:#13131a;border:1px solid #25253a;padding:8px 14px;border-radius:9px'>← Voltar</a>
+<div class="wrap">
+  <div class="header">
+    <h1>Clipador</h1>
+    <p>Baixe vídeos em massa de qualquer site</p>
+    <div class="sites">
+      {% for site in sites %}<span class="chip">{{ site }}</span>{% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <input type="text" id="inp" placeholder="Cole o link do vídeo...">
+      <button class="btn-add" id="btn-add">+ Adicionar</button>
+    </div>
+    <div class="url-list" id="list"></div>
+    <div class="opts">
+      <div class="opt">
+        <label>Qualidade</label>
+        <select id="quality">
+          <option value="best">Melhor qualidade</option>
+          <option value="720">720p</option>
+          <option value="480">480p</option>
+          <option value="360">360p</option>
+        </select>
+      </div>
+      <div class="opt">
+        <label>Formato</label>
+        <div class="tog-row" id="tog-row">
+          <span>Só áudio (MP3)</span>
+          <div class="tog" id="tog"></div>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-start" id="btn-start" disabled>⬇ Baixar todos</button>
+      <button class="btn-ghost" id="btn-clear" disabled>Limpar</button>
+    </div>
+  </div>
+
+  <div id="stats" class="stats" style="display:none;">
+    Total: <strong id="s-total">0</strong>
+    &nbsp;|&nbsp; Prontos: <strong id="s-done">0</strong>
+    &nbsp;|&nbsp; Erros: <strong id="s-err" style="color:var(--red)">0</strong>
+    <div class="sp"></div>
+    <span id="s-spin" style="display:none;font-size:12px;color:var(--text3);"><span class="spin"></span>Baixando...</span>
+  </div>
+
+  <div id="zip-wrap" style="display:none;">
+    <button class="btn-zip" id="btn-zip">⬇ Baixar tudo como ZIP</button>
+    <div class="hint">Arquivos deletados do servidor em 10 minutos</div>
+  </div>
+
+  <div class="footer">Máximo 20 vídeos por sessão</div>
+</div>
+
+<script>
+// State
+var urls = [];
+var sessionId = null;
+var pollTimer = null;
+var audioOnly = false;
+var running = false;
+var counter = 0;
+
+// Elements
+var inp = document.getElementById('inp');
+var btnAdd = document.getElementById('btn-add');
+var btnStart = document.getElementById('btn-start');
+var btnClear = document.getElementById('btn-clear');
+var btnZip = document.getElementById('btn-zip');
+var tog = document.getElementById('tog');
+
+// Add URL
+function addUrl() {
+  var url = inp.value.trim();
+  if (!url) return;
+  if (!url.startsWith('http')) { alert('Link inválido'); return; }
+  if (urls.length >= 20) { alert('Máximo 20 vídeos'); return; }
+  var exists = false;
+  for (var i = 0; i < urls.length; i++) {
+    if (urls[i].url === url) { exists = true; break; }
+  }
+  if (!exists) {
+    urls.push({id: ++counter, url: url, jobId: null, status: 'queued', progress: 0, title: url.substring(0, 55), filename: null, filesize: null, error: null});
+  }
+  inp.value = '';
+  render();
+  updateBtns();
+}
+
+btnAdd.onclick = addUrl;
+inp.onkeydown = function(e) { if (e.key === 'Enter') addUrl(); };
+
+// Toggle audio
+document.getElementById('tog-row').onclick = function() {
+  audioOnly = !audioOnly;
+  tog.className = 'tog' + (audioOnly ? ' on' : '');
+  document.getElementById('quality').disabled = audioOnly;
+  document.getElementById('quality').style.opacity = audioOnly ? '0.4' : '1';
+};
+
+// Remove URL
+function removeUrl(id) {
+  urls = urls.filter(function(u) { return u.id !== id; });
+  render();
+  updateBtns();
+}
+
+// Download one
+function dlOne(jobId) {
+  var a = document.createElement('a');
+  a.href = '/t/downloader/api/get/' + jobId;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// Clear all
+btnClear.onclick = function() {
+  if (running) return;
+  urls = [];
+  sessionId = null;
+  if (pollTimer) clearInterval(pollTimer);
+  render();
+  updateBtns();
+  document.getElementById('stats').style.display = 'none';
+  document.getElementById('zip-wrap').style.display = 'none';
+};
+
+// Start downloads
+btnStart.onclick = function() {
+  var queued = urls.filter(function(u) { return u.status === 'queued'; });
+  if (!queued.length) return;
+  running = true;
+  updateBtns();
+
+  var urlList = queued.map(function(u) { return u.url; });
+  var quality = document.getElementById('quality').value;
+
+  fetch('/t/downloader/api/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({urls: urlList, quality: quality, audio_only: audioOnly})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.error) {
+      alert('Erro: ' + data.error);
+      running = false;
+      updateBtns();
+      return;
+    }
+    sessionId = data.session_id;
+    // Map job IDs back to urls
+    for (var i = 0; i < data.job_ids.length; i++) {
+      if (queued[i]) {
+        queued[i].jobId = data.job_ids[i];
+        queued[i].status = 'downloading';
+      }
+    }
+    document.getElementById('stats').style.display = '';
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(poll, 1000);
+    render();
+  })
+  .catch(function(e) {
+    alert('Erro: ' + e.message);
+    running = false;
+    updateBtns();
+  });
+};
+
+// Poll session
+function poll() {
+  if (!sessionId) return;
+  fetch('/t/downloader/api/session/' + sessionId)
+  .then(function(r) {
+    if (r.status === 404) { clearInterval(pollTimer); return null; }
+    return r.json();
+  })
+  .then(function(data) {
+    if (!data) return;
+    // Update each url by matching job_id
+    for (var i = 0; i < data.items.length; i++) {
+      var srv = data.items[i];
+      var local = null;
+      // Find by jobId
+      for (var j = 0; j < urls.length; j++) {
+        if (urls[j].jobId === srv.job_id) { local = urls[j]; break; }
+      }
+      // Fallback: find by url
+      if (!local) {
+        for (var j = 0; j < urls.length; j++) {
+          if (urls[j].url === srv.url) { local = urls[j]; break; }
+        }
+      }
+      if (!local) continue;
+      local.jobId = srv.job_id;
+      local.status = srv.status;
+      local.progress = srv.progress;
+      if (srv.title) local.title = srv.title;
+      local.filename = srv.filename;
+      local.filesize = srv.filesize;
+      local.error = srv.error;
+    }
+    render();
+    updateStats();
+
+    if (data.status === 'done') {
+      clearInterval(pollTimer);
+      running = false;
+      updateBtns();
+      document.getElementById('s-spin').style.display = 'none';
+    }
+  })
+  .catch(function(e) { console.error('poll error', e); });
+}
+
+// Download all ZIP
+document.getElementById('btn-zip').onclick = function() {
+  if (sessionId) window.location.href = '/t/downloader/api/download-all/' + sessionId;
+};
+
+// Render list
+function render() {
+  var list = document.getElementById('list');
+  if (!urls.length) {
+    list.innerHTML = '<div class="empty">Adicione links acima para começar</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < urls.length; i++) {
+    var u = urls[i];
+    var showBar = u.status === 'downloading' || u.status === 'processing';
+    var sub = u.status === 'queued' ? 'Na fila'
+      : u.status === 'downloading' ? 'Baixando...'
+      : u.status === 'processing' ? 'Processando...'
+      : u.status === 'done' ? (u.filename || 'Concluído') + (u.filesize ? ' · ' + fmtB(u.filesize) : '')
+      : u.status === 'error' ? ('Erro: ' + (u.error || '')) : '';
+    html += '<div class="ui">';
+    html += '<div class="ui-dot ' + u.status + '"></div>';
+    html += '<div class="ui-info">';
+    html += '<div class="ui-title">' + esc(u.title) + '</div>';
+    html += '<div class="ui-sub">' + esc(sub) + '</div>';
+    if (showBar) html += '<div class="ui-bar"><div class="ui-fill" style="width:' + u.progress + '%"></div></div>';
+    html += '</div>';
+    html += '<span class="ui-pct">' + (showBar ? u.progress + '%' : '') + '</span>';
+    if (u.status === 'done' && u.jobId) html += '<button class="btn-dl" onclick="dlOne(\'' + u.jobId + '\')">⬇ Baixar</button>';
+    if (!running || (u.status !== 'downloading' && u.status !== 'processing')) {
+      html += '<button class="btn-rm" onclick="removeUrl(' + u.id + ')">×</button>';
+    }
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
+function updateStats() {
+  var done = urls.filter(function(u) { return u.status === 'done'; }).length;
+  var errs = urls.filter(function(u) { return u.status === 'error'; }).length;
+  var isRunning = urls.some(function(u) { return u.status === 'downloading' || u.status === 'processing'; });
+  document.getElementById('s-total').textContent = urls.length;
+  document.getElementById('s-done').textContent = done;
+  document.getElementById('s-err').textContent = errs;
+  document.getElementById('s-spin').style.display = isRunning ? '' : 'none';
+  document.getElementById('zip-wrap').style.display = done > 0 ? '' : 'none';
+}
+
+function updateBtns() {
+  var hasQueued = urls.some(function(u) { return u.status === 'queued'; });
+  btnStart.disabled = !urls.length || running || !hasQueued;
+  btnClear.disabled = running;
+}
+
+function fmtB(b) {
+  if (!b) return '';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  if (b < 1073741824) return (b/1048576).toFixed(1) + ' MB';
+  return (b/1073741824).toFixed(2) + ' GB';
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>

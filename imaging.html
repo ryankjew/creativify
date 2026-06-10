@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Creativify — Ferramentas de Imagem</title>
+<style>
+:root{
+  --bg:#0a0a0d;--surface:#13131a;--surface2:#1c1c26;--border:#25253a;--border2:#32324a;
+  --text:#eeeef5;--text2:#8888aa;--text3:#5a5a72;--accent:#22c97a;--accent-dim:#22c97a15;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px;}
+.back{position:fixed;top:16px;left:16px;color:var(--text2);text-decoration:none;font-weight:600;font-size:13px;background:var(--surface);border:1px solid var(--border);padding:8px 14px;border-radius:9px;}
+.back:hover{color:var(--text);}
+.wrap{width:100%;max-width:600px;}
+.header{text-align:center;margin-bottom:24px;}
+.header .ico{font-size:40px;margin-bottom:10px;}
+.header h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;}
+.header p{font-size:13px;color:var(--text2);}
+
+.tabs{display:flex;gap:6px;justify-content:center;margin-bottom:24px;flex-wrap:wrap;}
+.tab{font-size:13px;padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--text2);cursor:pointer;font-family:inherit;font-weight:500;text-decoration:none;}
+.tab.active{background:var(--accent);color:#03150a;border-color:var(--accent);font-weight:700;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:14px;}
+.drop{border:2px dashed var(--border2);border-radius:12px;padding:32px 20px;text-align:center;cursor:pointer;transition:.15s;}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-dim);}
+.drop .dico{font-size:30px;margin-bottom:8px;}
+.drop .dt{font-size:14px;font-weight:600;margin-bottom:4px;}
+.drop .ds{font-size:12px;color:var(--text3);}
+input[type=file]{display:none;}
+
+.files{margin-top:14px;display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;}
+.frow{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;}
+.frow .fn{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.frow .fsz{color:var(--text3);}
+.frow .fx{cursor:pointer;color:var(--text3);font-size:15px;}
+.frow .fx:hover{color:#ff4f4f;}
+
+.opt{margin-top:16px;}
+.opt label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);display:block;margin-bottom:7px;}
+select,input[type=number]{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:10px 12px;font-size:13px;color:var(--text);outline:none;font-family:inherit;}
+select:focus,input:focus{border-color:var(--accent);}
+.range-row{display:flex;align-items:center;gap:12px;}
+.range-row input[type=range]{flex:1;accent-color:var(--accent);}
+.range-val{font-size:13px;font-weight:600;min-width:42px;text-align:right;}
+.dims{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.checks{display:flex;flex-direction:column;gap:8px;}
+.check{display:flex;align-items:center;gap:9px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;cursor:pointer;font-size:13px;}
+.check input{accent-color:var(--accent);width:16px;height:16px;}
+
+.btn{width:100%;background:var(--accent);color:#03150a;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;margin-top:18px;font-family:inherit;}
+.btn:hover{filter:brightness(1.08);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+.status{margin-top:14px;text-align:center;font-size:13px;color:var(--text2);display:none;}
+.status.show{display:block;}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.footer{text-align:center;font-size:11px;color:var(--text3);margin-top:18px;}
+</style>
+</head>
+<body>
+<a class="back" href="/">← Voltar</a>
+<div class="wrap">
+  <div class="header">
+    <div class="ico" id="ico">🖼</div>
+    <h1 id="title">Ferramentas de Imagem</h1>
+    <p id="desc">Processe suas imagens em massa</p>
+  </div>
+
+  <div class="tabs">
+    <a class="tab" data-tool="compress" href="?tool=compress">Comprimir</a>
+    <a class="tab" data-tool="exif" href="?tool=exif">Limpar EXIF</a>
+    <a class="tab" data-tool="convert" href="?tool=convert">Converter</a>
+    <a class="tab" data-tool="resize" href="?tool=resize">Redimensionar</a>
+  </div>
+
+  <div class="card">
+    <div class="drop" id="drop">
+      <div class="dico">📁</div>
+      <div class="dt">Arraste imagens ou clique aqui</div>
+      <div class="ds">JPG · PNG · WebP · HEIC · até 50 imagens</div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" multiple>
+    <div class="files" id="fileList"></div>
+
+    <!-- compress options -->
+    <div class="opt tool-opt" data-for="compress" style="display:none">
+      <label>Qualidade</label>
+      <div class="range-row">
+        <input type="range" id="quality" min="20" max="95" value="75">
+        <span class="range-val" id="qval">75%</span>
+      </div>
+    </div>
+
+    <!-- convert options -->
+    <div class="opt tool-opt" data-for="convert" style="display:none">
+      <label>Converter para</label>
+      <select id="format">
+        <option value="webp">WebP (menor tamanho)</option>
+        <option value="jpg">JPG</option>
+        <option value="png">PNG</option>
+        <option value="avif">AVIF</option>
+        <option value="bmp">BMP</option>
+        <option value="tiff">TIFF</option>
+      </select>
+    </div>
+
+    <!-- resize options -->
+    <div class="opt tool-opt" data-for="resize" style="display:none">
+      <label>Formatos para redes sociais</label>
+      <div class="checks">
+        <label class="check"><input type="checkbox" class="size" value="tiktok_reels" checked> 9:16 — TikTok / Reels / Stories</label>
+        <label class="check"><input type="checkbox" class="size" value="youtube" checked> 16:9 — YouTube / LinkedIn</label>
+        <label class="check"><input type="checkbox" class="size" value="square"> 1:1 — Feed quadrado</label>
+        <label class="check"><input type="checkbox" class="size" value="portrait"> 4:5 — Feed vertical</label>
+      </div>
+    </div>
+
+    <button class="btn" id="go" disabled>Processar</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="footer">Tudo processado de forma privada · arquivos deletados em 10 minutos</div>
+</div>
+
+<script>
+var TOOLS = {
+  compress: {ico:'🗜', title:'Compressor inteligente', desc:'Reduza o tamanho sem perder nitidez', endpoint:'/t/imaging/api/image/compress', btn:'Comprimir imagens'},
+  exif:     {ico:'🧹', title:'Limpador de EXIF', desc:'Remova GPS e dados da câmera das fotos', endpoint:'/t/imaging/api/image/exif', btn:'Limpar metadados'},
+  convert:  {ico:'🔄', title:'Conversor de imagem', desc:'Converta entre vários formatos', endpoint:'/t/imaging/api/image/convert', btn:'Converter imagens'},
+  resize:   {ico:'📐', title:'Redimensionador', desc:'Gere versões para cada rede social', endpoint:'/t/imaging/api/image/resize', btn:'Redimensionar'}
+};
+
+function getTool(){
+  var p = new URLSearchParams(location.search).get('tool');
+  return TOOLS[p] ? p : 'compress';
+}
+var current = getTool();
+var files = [];
+
+// Setup UI for current tool
+var t = TOOLS[current];
+document.getElementById('ico').textContent = t.ico;
+document.getElementById('title').textContent = t.title;
+document.getElementById('desc').textContent = t.desc;
+document.getElementById('go').textContent = t.btn;
+var tabs = document.querySelectorAll('.tab');
+for(var i=0;i<tabs.length;i++){ if(tabs[i].dataset.tool===current) tabs[i].classList.add('active'); }
+var opts = document.querySelectorAll('.tool-opt');
+for(var i=0;i<opts.length;i++){ opts[i].style.display = opts[i].dataset.for===current ? 'block':'none'; }
+
+// File handling
+var drop = document.getElementById('drop');
+var input = document.getElementById('fileInput');
+drop.onclick = function(){ input.click(); };
+input.onchange = function(){ addFiles(input.files); };
+drop.ondragover = function(e){ e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = function(){ drop.classList.remove('over'); };
+drop.ondrop = function(e){ e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); };
+
+function addFiles(list){
+  for(var i=0;i<list.length;i++){
+    if(list[i].type.indexOf('image')===0 && files.length<50) files.push(list[i]);
+  }
+  renderFiles();
+}
+function removeFile(idx){ files.splice(idx,1); renderFiles(); }
+function renderFiles(){
+  var box = document.getElementById('fileList');
+  box.innerHTML = '';
+  for(var i=0;i<files.length;i++){
+    (function(idx){
+      var f = files[idx];
+      var row = document.createElement('div');
+      row.className = 'frow';
+      row.innerHTML = '<span class="fn">'+esc(f.name)+'</span><span class="fsz">'+fmtSize(f.size)+'</span><span class="fx">×</span>';
+      row.querySelector('.fx').onclick = function(){ removeFile(idx); };
+      box.appendChild(row);
+    })(i);
+  }
+  document.getElementById('go').disabled = files.length === 0;
+}
+function fmtSize(b){ if(b<1024)return b+' B'; if(b<1048576)return (b/1024).toFixed(0)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Quality slider
+var q = document.getElementById('quality');
+if(q){ q.oninput = function(){ document.getElementById('qval').textContent = q.value+'%'; }; }
+
+// Process
+document.getElementById('go').onclick = function(){
+  if(!files.length) return;
+  var fd = new FormData();
+  for(var i=0;i<files.length;i++) fd.append('files', files[i]);
+  if(current==='compress') fd.append('quality', q.value);
+  if(current==='convert') fd.append('format', document.getElementById('format').value);
+  if(current==='resize'){
+    fd.append('mode','preset');
+    var checks = document.querySelectorAll('.size:checked');
+    for(var i=0;i<checks.length;i++) fd.append('sizes', checks[i].value);
+  }
+
+  var status = document.getElementById('status');
+  status.className = 'status show';
+  status.innerHTML = '<span class="spin"></span>Processando '+files.length+' imagem(ns)...';
+  document.getElementById('go').disabled = true;
+
+  fetch(t.endpoint, {method:'POST', body:fd})
+  .then(function(r){
+    if(!r.ok) return r.json().then(function(j){ throw new Error(j.error||'Erro'); });
+    return r.blob();
+  })
+  .then(function(blob){
+    var ct = blob.type;
+    var ext = ct.indexOf('zip')>-1 ? 'zip' : (ct.indexOf('png')>-1?'png':ct.indexOf('webp')>-1?'webp':'jpg');
+    var name = files.length>1 ? 'creativify.zip' : ('resultado.'+ext);
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href=url; a.download=name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    status.innerHTML = '✅ Pronto! Download iniciado.';
+    document.getElementById('go').disabled = false;
+  })
+  .catch(function(e){
+    status.innerHTML = '❌ '+e.message;
+    document.getElementById('go').disabled = false;
+  });
+};
+</script>
+</body>
+</html>

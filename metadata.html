@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VideoMeta Cleaner</title>
+<style>
+:root {
+  --bg: #0f0f11;
+  --surface: #1a1a1f;
+  --surface2: #222228;
+  --border: #2e2e38;
+  --border2: #3a3a48;
+  --text: #e8e8f0;
+  --text2: #9090a8;
+  --text3: #5a5a72;
+  --accent: #6c63ff;
+  --accent-dim: #6c63ff22;
+  --green: #22c97a;
+  --green-dim: #22c97a15;
+  --red: #ff5c5c;
+  --red-dim: #ff5c5c15;
+  --amber: #ffb84d;
+  --amber-dim: #ffb84d15;
+  --mono: 'JetBrains Mono','Fira Code',monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system,'Segoe UI',system-ui,sans-serif; line-height:1.5; min-height:100vh; font-size:14px; }
+
+.layout { display: grid; grid-template-columns: 320px 1fr; min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; overflow: hidden; }
+
+.sidebar-top { padding: 18px 16px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.logo { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.logo-box { width:34px; height:34px; background: var(--accent); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.logo h1 { font-size:15px; font-weight:600; }
+.logo p { font-size:11px; color:var(--text3); }
+.ffmpeg-tag { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--text3); background:var(--surface2); border:1px solid var(--border); padding:3px 9px; border-radius:20px; }
+.ffmpeg-tag .dot { width:6px; height:6px; border-radius:50%; }
+.dot-ok { background: var(--green); }
+.dot-err { background: var(--red); }
+
+.drop-zone { margin:12px; border:1.5px dashed var(--border2); border-radius:10px; padding:22px 14px; text-align:center; cursor:pointer; transition:all .15s; flex-shrink:0; }
+.drop-zone:hover,.drop-zone.over { border-color:var(--accent); background:var(--accent-dim); }
+.drop-zone .dz-icon { font-size:26px; margin-bottom:8px; }
+.drop-zone p { font-size:13px; color:var(--text2); }
+.drop-zone span { font-size:11px; color:var(--text3); display:block; margin-top:4px; }
+#file-input { display:none; }
+
+.queue-label { padding:0 14px 6px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text3); flex-shrink:0; }
+.queue { flex:1; overflow-y:auto; padding:0 10px 10px; }
+.queue::-webkit-scrollbar { width:3px; }
+.queue::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+.qi { padding:9px 10px; border-radius:8px; cursor:pointer; transition:background .1s; margin-bottom:2px; border:1px solid transparent; }
+.qi:hover { background:var(--surface2); }
+.qi.active { background:var(--accent-dim); border-color:#6c63ff44; }
+.qi-row { display:flex; align-items:center; gap:8px; }
+.qi-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.qi-dot.queued { background:var(--text3); }
+.qi-dot.extracting,.qi-dot.processing { background:var(--accent); animation:pulse 1s infinite; }
+.qi-dot.done { background:var(--green); }
+.qi-dot.error { background:var(--red); }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+.qi-name { font-size:12px; font-weight:500; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.qi-status { font-size:10px; color:var(--text3); flex-shrink:0; }
+.qi-bar { height:2px; background:var(--border); border-radius:1px; margin-top:6px; overflow:hidden; }
+.qi-fill { height:100%; background:var(--accent); border-radius:1px; transition:width .3s; }
+
+.sidebar-actions { padding:12px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:8px; flex-shrink:0; }
+.btn { display:flex; align-items:center; justify-content:center; gap:7px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; border:none; transition:all .15s; width:100%; }
+.btn:disabled { opacity:.35; cursor:not-allowed; }
+.btn-accent { background:var(--accent); color:#fff; }
+.btn-accent:not(:disabled):hover { background:#7c73ff; }
+.btn-ghost { background:var(--surface2); color:var(--text2); border:1px solid var(--border); }
+.btn-ghost:not(:disabled):hover { background:var(--border); color:var(--text); }
+.btn-green { background:var(--green); color:#071a0e; font-weight:600; }
+.btn-green:not(:disabled):hover { background:#2ee88a; }
+.btn-row { display:flex; gap:8px; }
+.btn-row .btn { flex:1; }
+
+/* MAIN */
+.main { overflow-y:auto; display:flex; flex-direction:column; }
+
+.topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:10px 22px; display:flex; gap:20px; align-items:center; font-size:13px; position:sticky; top:0; z-index:10; }
+.topbar-stat { display:flex; gap:6px; align-items:center; color:var(--text2); }
+.topbar-stat strong { color:var(--text); font-variant-numeric:tabular-nums; }
+.topbar .sep { color:var(--border2); }
+.topbar .spacer { flex:1; }
+.spinner { display:inline-block; width:13px; height:13px; border:2px solid var(--border2); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+.empty-state { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px; color:var(--text3); }
+.empty-state .esi { font-size:48px; margin-bottom:16px; }
+.empty-state h2 { font-size:18px; font-weight:500; color:var(--text2); margin-bottom:8px; }
+.empty-state p { font-size:13px; max-width:300px; line-height:1.6; }
+
+.detail { padding:24px; }
+
+.detail-head { display:flex; align-items:flex-start; gap:14px; margin-bottom:22px; }
+.detail-icon { width:46px; height:46px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+.detail-name { font-size:16px; font-weight:600; word-break:break-all; margin-bottom:3px; }
+.detail-sub { font-size:12px; color:var(--text3); }
+
+/* Stats grid */
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:22px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+.stat-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; }
+.stat-val { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
+.sv-red { color:var(--red); }
+.sv-green { color:var(--green); }
+.sv-accent { color:var(--accent); }
+.sv-normal { color:var(--text); }
+
+/* Download bar */
+.dl-bar { display:flex; align-items:center; gap:12px; margin-bottom:22px; padding:14px 16px; background:var(--green-dim); border:1px solid #22c97a33; border-radius:10px; }
+.dl-bar .dl-info { font-size:12px; color:var(--text2); flex:1; }
+.dl-bar .dl-info strong { color:var(--green); }
+.dl-btn { background:var(--green); color:#071a0e; font-weight:700; border:none; padding:9px 20px; border-radius:8px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0; }
+.dl-btn:hover { background:#2ee88a; }
+
+/* Error bar */
+.err-bar { background:var(--red-dim); border:1px solid #ff5c5c33; border-radius:10px; padding:14px 16px; margin-bottom:22px; }
+.err-bar h3 { font-size:13px; font-weight:600; color:var(--red); margin-bottom:8px; }
+.err-bar pre { font-size:11px; color:var(--text2); white-space:pre-wrap; word-break:break-all; font-family:var(--mono); background:var(--surface); padding:10px; border-radius:6px; border:1px solid var(--border); max-height:200px; overflow-y:auto; }
+
+/* Processing */
+.proc-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:24px; text-align:center; }
+.proc-icon { font-size:36px; margin-bottom:12px; }
+.proc-label { font-size:14px; color:var(--text2); margin-bottom:16px; }
+.big-bar { height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
+.big-fill { height:100%; background:var(--accent); border-radius:3px; transition:width .4s; }
+.proc-pct { font-size:12px; color:var(--text3); margin-top:8px; }
+
+/* Meta sections */
+.meta-sec { margin-bottom:20px; }
+.meta-head { display:flex; align-items:center; gap:8px; padding-bottom:8px; border-bottom:1px solid var(--border); margin-bottom:10px; }
+.meta-head h3 { font-size:13px; font-weight:600; }
+.badge { font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; }
+.badge-red { background:var(--red-dim); color:var(--red); border:1px solid #ff5c5c33; }
+.badge-green { background:var(--green-dim); color:var(--green); border:1px solid #22c97a33; }
+.badge-amber { background:var(--amber-dim); color:var(--amber); border:1px solid #ffb84d33; }
+
+.meta-table { width:100%; border-collapse:collapse; }
+.meta-table tr { border-bottom:1px solid var(--border); }
+.meta-table tr:last-child { border-bottom:none; }
+.meta-table tr:hover { background:var(--surface2); }
+.meta-table td { padding:8px 10px; font-size:12px; vertical-align:top; }
+.col-label { width:30%; color:var(--text3); }
+.col-field { font-family:var(--mono); font-size:10px; color:var(--text3); display:block; margin-top:2px; }
+.col-val { color:var(--text2); word-break:break-all; }
+.col-src { width:80px; text-align:right; }
+.src-tag { font-size:10px; font-family:var(--mono); background:var(--surface2); border:1px solid var(--border); color:var(--text3); padding:2px 6px; border-radius:4px; }
+
+.meta-empty { font-size:13px; color:var(--text3); padding:14px; text-align:center; background:var(--surface); border:1px solid var(--border); border-radius:8px; }
+
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+</style>
+</head>
+<body>
+<a href='/' style='position:fixed;top:16px;left:16px;z-index:99;color:#8888aa;text-decoration:none;font:600 13px -apple-system,sans-serif;background:#13131a;border:1px solid #25253a;padding:8px 14px;border-radius:9px'>← Voltar</a>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-top">
+    <div class="logo">
+      <div class="logo-box">🎬</div>
+      <div>
+        <h1>VideoMeta Cleaner</h1>
+        <p>Limpeza de metadados em massa</p>
+      </div>
+    </div>
+    <span class="ffmpeg-tag">
+      <span class="dot {% if ffmpeg_ok %}dot-ok{% else %}dot-err{% endif %}"></span>
+      {% if ffmpeg_ok %}FFmpeg instalado{% else %}FFmpeg não encontrado{% endif %}
+    </span>
+    {% if not ffmpeg_ok %}
+    <div style="margin-top:10px;padding:10px;background:var(--red-dim);border:1px solid #ff5c5c33;border-radius:8px;font-size:12px;color:var(--text2);line-height:1.8;">
+      <strong style="color:var(--red);">⚠ Instale o FFmpeg:</strong><br>
+      macOS: <code>brew install ffmpeg</code><br>
+      Ubuntu: <code>sudo apt install ffmpeg</code>
+    </div>
+    {% endif %}
+  </div>
+
+  <input type="file" id="file-input" multiple accept="video/*">
+  <div class="drop-zone" id="drop-zone">
+    <div class="dz-icon">📂</div>
+    <p>Arraste vídeos ou <strong>clique aqui</strong></p>
+    <span>MP4 · MKV · MOV · AVI · WebM · WMV</span>
+  </div>
+
+  <div class="queue-label">Fila (<span id="q-count">0</span>)</div>
+  <div class="queue" id="queue">
+    <div style="font-size:12px;color:var(--text3);padding:10px 6px;text-align:center;">Nenhum vídeo adicionado</div>
+  </div>
+
+  <div class="sidebar-actions">
+    <button class="btn btn-accent" id="btn-process" disabled>✨ Limpar metadados</button>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="btn-clear" disabled>🗑 Limpar lista</button>
+      <button class="btn btn-green" id="btn-dl-all" disabled>⬇ Baixar tudo</button>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar" id="topbar" style="display:none;">
+    <div class="topbar-stat">Arquivos: <strong id="g-total">0</strong></div>
+    <span class="sep">|</span>
+    <div class="topbar-stat">Concluídos: <strong id="g-done">0</strong></div>
+    <span class="sep">|</span>
+    <div class="topbar-stat">Metadados removidos: <strong id="g-removed">0</strong></div>
+    <span class="sep">|</span>
+    <div class="topbar-stat">Erros: <strong id="g-errors" style="color:var(--red);">0</strong></div>
+    <div class="spacer"></div>
+    <div id="g-spin" style="display:none;font-size:12px;color:var(--text3);gap:6px;align-items:center;display:none;">
+      <span class="spinner"></span> Processando...
+    </div>
+  </div>
+
+  <div class="empty-state" id="empty-state">
+    <div class="esi">🛡️</div>
+    <h2>Seus vídeos, sem rastros</h2>
+    <p>Adicione vídeos na barra lateral. A ferramenta mostra exatamente quais metadados foram removidos de cada arquivo — GPS, câmera, data, software e mais.</p>
+  </div>
+
+  <div id="detail-panel" style="display:none;"></div>
+</main>
+</div>
+
+<script>
+const S = {
+  files: [],
+  jobId: null,
+  poll: null,
+  selected: null,
+};
+
+const $=id=>document.getElementById(id);
+const dropZone=$('drop-zone'), fileInput=$('file-input');
+const btnProcess=$('btn-process'), btnClear=$('btn-clear'), btnDlAll=$('btn-dl-all');
+
+// Drag & drop
+dropZone.addEventListener('click',()=>fileInput.click());
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('over'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('over');addFiles(e.dataTransfer.files);});
+fileInput.addEventListener('change',e=>{addFiles(e.target.files);fileInput.value='';});
+
+const VIDEO_EXTS=new Set(['.mp4','.mkv','.mov','.avi','.webm','.flv','.wmv','.m4v','.ts','.mts','.3gp']);
+
+function addFiles(list){
+  Array.from(list).forEach(f=>{
+    const ext=f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+    if(!VIDEO_EXTS.has(ext))return;
+    if(S.files.find(x=>x.name===f.name&&x.size===f.size))return;
+    S.files.push({id:null,name:f.name,size:f.size,file:f,status:'queued',progress:0,removed:[],kept:[],removed_count:0,kept_count:0,error:null});
+  });
+  renderQueue();
+  updateButtons();
+}
+
+function renderQueue(){
+  const q=$('queue');
+  $('q-count').textContent=S.files.length;
+  if(!S.files.length){
+    q.innerHTML='<div style="font-size:12px;color:var(--text3);padding:10px 6px;text-align:center;">Nenhum vídeo adicionado</div>';
+    return;
+  }
+  q.innerHTML=S.files.map(f=>{
+    const fid=f.id||f.name;
+    const active=S.selected===fid?' active':'';
+    const lbl=f.status==='queued'?'na fila'
+      :f.status==='extracting'?'lendo...'
+      :f.status==='processing'?f.progress+'%'
+      :f.status==='done'?`✓ ${f.removed_count} removidos`
+      :f.status==='error'?'✗ erro':'';
+    const bar=(f.status==='processing'||f.status==='extracting')
+      ?`<div class="qi-bar"><div class="qi-fill" style="width:${f.progress}%"></div></div>`:'';
+    return `<div class="qi${active}" onclick="selectFile('${fid}')">
+      <div class="qi-row">
+        <div class="qi-dot ${f.status}"></div>
+        <div class="qi-name" title="${esc(f.name)}">${esc(f.name)}</div>
+        <div class="qi-status">${lbl}</div>
+      </div>${bar}
+    </div>`;
+  }).join('');
+}
+
+function selectFile(fid){
+  S.selected=fid;
+  renderQueue();
+  renderDetail();
+}
+
+function renderDetail(){
+  const f=S.files.find(x=>(x.id||x.name)===S.selected);
+  const empty=$('empty-state'), panel=$('detail-panel');
+  if(!f){empty.style.display='';panel.style.display='none';return;}
+  empty.style.display='none';
+  panel.style.display='';
+  const ext=f.name.slice(f.name.lastIndexOf('.')+1).toUpperCase();
+  let html=`<div class="detail">
+    <div class="detail-head">
+      <div class="detail-icon">🎞</div>
+      <div>
+        <div class="detail-name">${esc(f.name)}</div>
+        <div class="detail-sub">${ext} · ${fmtBytes(f.size)} · ${statusText(f)}</div>
+      </div>
+    </div>`;
+
+  if(f.status==='queued'){
+    html+=`<div class="proc-card"><div class="proc-icon">⏳</div><div class="proc-label">Na fila — aguardando processamento</div></div>`;
+
+  }else if(f.status==='extracting'||f.status==='processing'){
+    const lbl=f.status==='extracting'?'Lendo metadados do arquivo...':'Removendo metadados...';
+    html+=`<div class="proc-card">
+      <div class="proc-icon">⚙️</div>
+      <div class="proc-label">${lbl}</div>
+      <div class="big-bar"><div class="big-fill" style="width:${f.progress}%"></div></div>
+      <div class="proc-pct">${f.progress}%</div>
+    </div>`;
+
+  }else if(f.status==='error'){
+    html+=`<div class="err-bar">
+      <h3>❌ Erro ao processar este arquivo</h3>
+      <pre>${esc(f.error||'Erro desconhecido')}</pre>
+    </div>`;
+
+  }else if(f.status==='done'){
+    const saved=f.in_size-f.out_size;
+    const pct=f.in_size>0?((saved/f.in_size)*100).toFixed(1):0;
+
+    html+=`<div class="stats">
+      <div class="stat"><div class="stat-label">Removidos</div><div class="stat-val sv-red">${f.removed_count}</div></div>
+      <div class="stat"><div class="stat-label">Restaram</div><div class="stat-val sv-${f.kept_count===0?'green':'amber'}">${f.kept_count}</div></div>
+      <div class="stat"><div class="stat-label">Tamanho original</div><div class="stat-val sv-normal" style="font-size:15px;">${fmtBytes(f.in_size)}</div></div>
+      <div class="stat"><div class="stat-label">Tamanho limpo</div><div class="stat-val sv-green" style="font-size:15px;">${fmtBytes(f.out_size)}</div></div>
+    </div>
+
+    <div class="dl-bar">
+      <div class="dl-info">
+        Arquivo limpo pronto · <strong>${fmtBytes(f.out_size)}</strong>
+        ${saved>0?` · economizou ${fmtBytes(saved)} (${pct}%)`:''}
+      </div>
+      <button class="dl-btn" onclick="downloadOne('${f.id}')">⬇ Baixar MP4</button>
+    </div>`;
+
+    // Removed metadata
+    html+=`<div class="meta-sec">
+      <div class="meta-head">
+        <h3>🗑 Metadados removidos</h3>
+        <span class="badge badge-red">${f.removed_count}</span>
+      </div>`;
+    if(!f.removed.length){
+      html+=`<div class="meta-empty">Este arquivo não tinha metadados identificáveis</div>`;
+    }else{
+      html+=`<table class="meta-table">`;
+      f.removed.forEach(m=>{
+        html+=`<tr>
+          <td class="col-label">${esc(m.label)}<span class="col-field">${esc(m.field)}</span></td>
+          <td class="col-val">${esc(m.value)}</td>
+          <td class="col-src"><span class="src-tag">${esc(m.source)}</span></td>
+        </tr>`;
+      });
+      html+=`</table>`;
+    }
+    html+=`</div>`;
+
+    // Kept metadata
+    html+=`<div class="meta-sec">
+      <div class="meta-head">
+        <h3>✅ Metadados restantes</h3>
+        <span class="badge ${f.kept_count===0?'badge-green':'badge-amber'}">${f.kept_count}</span>
+      </div>`;
+    if(!f.kept.length){
+      html+=`<div class="meta-empty" style="color:var(--green);">Nenhum metadado restou — arquivo 100% limpo ✓</div>`;
+    }else{
+      html+=`<table class="meta-table">`;
+      f.kept.forEach(m=>{
+        html+=`<tr>
+          <td class="col-label">${esc(m.label)}<span class="col-field">${esc(m.field)}</span></td>
+          <td class="col-val">${esc(m.value)}</td>
+          <td class="col-src"><span class="src-tag">${esc(m.source)}</span></td>
+        </tr>`;
+      });
+      html+=`</table>`;
+    }
+    html+=`</div>`;
+  }
+
+  html+=`</div>`;
+  panel.innerHTML=html;
+}
+
+// Process
+btnProcess.addEventListener('click',async()=>{
+  const queued=S.files.filter(f=>f.status==='queued');
+  if(!queued.length)return;
+  btnProcess.disabled=true;
+  btnClear.disabled=true;
+  const fd=new FormData();
+  queued.forEach(f=>fd.append('files',f.file));
+  try{
+    const res=await fetch('/t/metadata/api/upload',{method:'POST',body:fd});
+    const data=await res.json();
+    if(data.error){alert('Erro: '+data.error);btnProcess.disabled=false;return;}
+    S.jobId=data.job_id;
+    if(S.poll)clearInterval(S.poll);
+    S.poll=setInterval(pollJob,700);
+  }catch(e){
+    alert('Erro de conexão: '+e.message);
+    btnProcess.disabled=false;
+  }
+});
+
+async function pollJob(){
+  if(!S.jobId)return;
+  try{
+    const res=await fetch('/t/metadata/api/job/'+S.jobId);
+    const data=await res.json();
+    data.files.forEach(srv=>{
+      let loc=S.files.find(f=>f.name===srv.original_name&&f.status!=='done'&&f.status!=='error');
+      if(!loc)loc=S.files.find(f=>f.name===srv.original_name);
+      if(!loc)return;
+      loc.id=srv.id;
+      loc.status=srv.status;
+      loc.progress=srv.progress;
+      loc.removed=srv.removed||[];
+      loc.kept=srv.kept||[];
+      loc.removed_count=srv.removed_count||0;
+      loc.kept_count=srv.kept_count||0;
+      loc.in_size=srv.in_size||loc.size;
+      loc.out_size=srv.out_size||0;
+      loc.error=srv.error||null;
+    });
+    renderQueue();
+    renderTopbar(data);
+    if(S.selected)renderDetail();
+    if(data.status==='done'){
+      clearInterval(S.poll);
+      btnProcess.disabled=false;
+      btnClear.disabled=false;
+      const hasDone=S.files.some(f=>f.status==='done');
+      btnDlAll.disabled=!hasDone;
+      $('g-spin').style.display='none';
+    }
+  }catch(e){console.error(e);}
+}
+
+function renderTopbar(data){
+  $('topbar').style.display='';
+  const total=S.files.length;
+  const done=S.files.filter(f=>f.status==='done').length;
+  const errors=S.files.filter(f=>f.status==='error').length;
+  const removed=S.files.reduce((s,f)=>s+(f.removed_count||0),0);
+  const running=S.files.some(f=>f.status==='processing'||f.status==='extracting');
+  $('g-total').textContent=total;
+  $('g-done').textContent=done;
+  $('g-removed').textContent=removed;
+  $('g-errors').textContent=errors;
+  const spin=$('g-spin');
+  spin.style.display=running?'flex':'none';
+}
+
+// Download individual
+function downloadOne(fid){
+  if(!S.jobId||!fid)return;
+  const a=document.createElement('a');
+  a.href=`/t/metadata/api/download/${S.jobId}/${fid}`;
+  a.click();
+}
+
+// Download all — sequential individual MP4s, not zip
+btnDlAll.addEventListener('click',async()=>{
+  if(!S.jobId)return;
+  const res=await fetch(`/t/metadata/api/download-all/${S.jobId}`);
+  const data=await res.json();
+  if(!data.files||!data.files.length){alert('Nenhum arquivo pronto.');return;}
+  // Stagger downloads so browser doesn't block them
+  data.files.forEach((f,i)=>{
+    setTimeout(()=>{
+      const a=document.createElement('a');
+      a.href=f.url;
+      a.download=f.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    },i*600);
+  });
+});
+
+btnClear.addEventListener('click',()=>{
+  if(S.files.some(f=>f.status==='processing'||f.status==='extracting'))return;
+  S.files=[];S.jobId=null;S.selected=null;
+  if(S.poll)clearInterval(S.poll);
+  renderQueue();updateButtons();
+  $('empty-state').style.display='';
+  $('detail-panel').style.display='none';
+  $('topbar').style.display='none';
+});
+
+function updateButtons(){
+  const has=S.files.length>0;
+  const running=S.files.some(f=>f.status==='processing'||f.status==='extracting');
+  const hasQ=S.files.some(f=>f.status==='queued');
+  const hasDone=S.files.some(f=>f.status==='done');
+  btnProcess.disabled=!has||running||!hasQ;
+  btnClear.disabled=running;
+  btnDlAll.disabled=!hasDone;
+}
+
+function statusText(f){
+  if(f.status==='queued')return'Na fila';
+  if(f.status==='extracting')return'Lendo metadados...';
+  if(f.status==='processing')return`Processando ${f.progress}%`;
+  if(f.status==='done')return'Concluído';
+  if(f.status==='error')return'Erro';
+  return f.status;
+}
+
+function fmtBytes(b){
+  if(!b)return'0 B';
+  if(b<1024)return b+' B';
+  if(b<1048576)return(b/1024).toFixed(1)+' KB';
+  if(b<1073741824)return(b/1048576).toFixed(1)+' MB';
+  return(b/1073741824).toFixed(2)+' GB';
+}
+
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
