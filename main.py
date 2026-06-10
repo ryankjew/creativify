@@ -6,6 +6,7 @@ from flask import Flask, render_template
 from tools.downloader import bp as downloader_bp
 from tools.metadata import bp as metadata_bp
 from tools.imaging import bp as imaging_bp
+from tools.video import bp as video_bp
 
 app = Flask(__name__)
 
@@ -16,6 +17,7 @@ Path("/tmp/creativify").mkdir(parents=True, exist_ok=True)
 app.register_blueprint(downloader_bp, url_prefix="/t/downloader")
 app.register_blueprint(metadata_bp, url_prefix="/t/metadata")
 app.register_blueprint(imaging_bp, url_prefix="/t/imaging")
+app.register_blueprint(video_bp, url_prefix="/t/video")
 
 # Catalog used by the dashboard. `ready` = backend wired up and working.
 TOOLS = [
@@ -27,13 +29,17 @@ TOOLS = [
      "desc": "Remova dados de rastreamento dos seus vídeos",
      "icon": "Eraser", "ready": True, "popular": True, "url": "/t/metadata/"},
     {"id": "vcompress", "cat": "video", "name": "Compressor de vídeo",
-     "desc": "Reduza o tamanho sem perder qualidade", "icon": "Minimize2"},
+     "desc": "Reduza o tamanho sem perder qualidade", "icon": "Minimize2",
+     "ready": True, "url": "/t/video/?tool=compress"},
     {"id": "vcut", "cat": "video", "name": "Cortador por tempo",
-     "desc": "Corte trechos exatos do seu vídeo", "icon": "Scissors"},
+     "desc": "Corte trechos exatos do seu vídeo", "icon": "Scissors",
+     "ready": True, "url": "/t/video/?tool=cut"},
     {"id": "vconvert", "cat": "video", "name": "Conversor de formato",
-     "desc": "MP4, MOV, WebM, AVI e mais", "icon": "RefreshCw"},
+     "desc": "MP4, MOV, WebM, AVI e mais", "icon": "RefreshCw",
+     "ready": True, "url": "/t/video/?tool=convert"},
     {"id": "vaudio", "cat": "video", "name": "Extrator de áudio",
-     "desc": "Extraia o áudio em MP3 ou WAV", "icon": "Music"},
+     "desc": "Extraia o áudio em MP3 ou WAV", "icon": "Music",
+     "ready": True, "url": "/t/video/?tool=audio"},
     {"id": "vresize", "cat": "video", "name": "Redimensionar p/ redes",
      "desc": "Gere 9:16, 16:9, 1:1 e 4:5 de um vídeo", "icon": "Crop", "popular": True},
     {"id": "vwatermark", "cat": "video", "name": "Removedor de marca d'água",

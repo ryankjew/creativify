@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Creativify — Ferramentas de Vídeo</title>
+<style>
+:root{
+  --bg:#0a0a0d;--surface:#13131a;--surface2:#1c1c26;--border:#25253a;--border2:#32324a;
+  --text:#eeeef5;--text2:#8888aa;--text3:#5a5a72;--accent:#7c6dff;--accent-dim:#7c6dff15;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px;}
+.back{position:fixed;top:16px;left:16px;color:var(--text2);text-decoration:none;font-weight:600;font-size:13px;background:var(--surface);border:1px solid var(--border);padding:8px 14px;border-radius:9px;}
+.back:hover{color:var(--text);}
+.wrap{width:100%;max-width:600px;}
+.header{text-align:center;margin-bottom:24px;}
+.header .ico{font-size:40px;margin-bottom:10px;}
+.header h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;}
+.header p{font-size:13px;color:var(--text2);}
+.tabs{display:flex;gap:6px;justify-content:center;margin-bottom:24px;flex-wrap:wrap;}
+.tab{font-size:13px;padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--text2);cursor:pointer;font-family:inherit;font-weight:500;text-decoration:none;}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:14px;}
+.drop{border:2px dashed var(--border2);border-radius:12px;padding:32px 20px;text-align:center;cursor:pointer;transition:.15s;}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-dim);}
+.drop .dico{font-size:30px;margin-bottom:8px;}
+.drop .dt{font-size:14px;font-weight:600;margin-bottom:4px;}
+.drop .ds{font-size:12px;color:var(--text3);}
+input[type=file]{display:none;}
+.fileinfo{margin-top:14px;display:none;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;}
+.fileinfo.show{display:flex;}
+.fileinfo .fn{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fileinfo .fx{cursor:pointer;color:var(--text3);font-size:15px;}
+.fileinfo .fx:hover{color:#ff4f4f;}
+.opt{margin-top:16px;}
+.opt label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);display:block;margin-bottom:7px;}
+select,input[type=text]{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:10px 12px;font-size:13px;color:var(--text);outline:none;font-family:inherit;}
+select:focus,input:focus{border-color:var(--accent);}
+.time-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.hint{font-size:11px;color:var(--text3);margin-top:6px;}
+.btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;margin-top:18px;font-family:inherit;}
+.btn:hover{filter:brightness(1.08);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.status{margin-top:14px;text-align:center;font-size:13px;color:var(--text2);display:none;}
+.status.show{display:block;}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.footer{text-align:center;font-size:11px;color:var(--text3);margin-top:18px;}
+</style>
+</head>
+<body>
+<a class="back" href="/">← Voltar</a>
+<div class="wrap">
+  <div class="header">
+    <div class="ico" id="ico">🎬</div>
+    <h1 id="title">Ferramentas de Vídeo</h1>
+    <p id="desc">Processe seus vídeos</p>
+  </div>
+
+  <div class="tabs">
+    <a class="tab" data-tool="compress" href="?tool=compress">Comprimir</a>
+    <a class="tab" data-tool="cut" href="?tool=cut">Cortar</a>
+    <a class="tab" data-tool="convert" href="?tool=convert">Converter</a>
+    <a class="tab" data-tool="audio" href="?tool=audio">Extrair áudio</a>
+  </div>
+
+  <div class="card">
+    <div class="drop" id="drop">
+      <div class="dico">🎞</div>
+      <div class="dt">Arraste um vídeo ou clique aqui</div>
+      <div class="ds">MP4 · MOV · WebM · MKV · AVI</div>
+    </div>
+    <input type="file" id="fileInput" accept="video/*">
+    <div class="fileinfo" id="fileinfo">
+      <span class="fn" id="fname"></span><span class="fsz" id="fsize"></span><span class="fx" id="fx">×</span>
+    </div>
+
+    <!-- compress -->
+    <div class="opt tool-opt" data-for="compress" style="display:none">
+      <label>Nível de compressão</label>
+      <select id="level">
+        <option value="light">Leve — melhor qualidade</option>
+        <option value="medium" selected>Médio — equilibrado</option>
+        <option value="strong">Forte — menor arquivo</option>
+      </select>
+    </div>
+
+    <!-- cut -->
+    <div class="opt tool-opt" data-for="cut" style="display:none">
+      <label>Tempo de corte</label>
+      <div class="time-row">
+        <input type="text" id="start" placeholder="Início — 00:00:05">
+        <input type="text" id="end" placeholder="Fim — 00:00:20">
+      </div>
+      <div class="hint">Formato: HH:MM:SS ou segundos. Deixe um vazio para cortar até o início/fim.</div>
+    </div>
+
+    <!-- convert -->
+    <div class="opt tool-opt" data-for="convert" style="display:none">
+      <label>Converter para</label>
+      <select id="vformat">
+        <option value="mp4">MP4 (mais compatível)</option>
+        <option value="mov">MOV</option>
+        <option value="webm">WebM</option>
+        <option value="mkv">MKV</option>
+        <option value="avi">AVI</option>
+        <option value="gif">GIF animado</option>
+      </select>
+    </div>
+
+    <!-- audio -->
+    <div class="opt tool-opt" data-for="audio" style="display:none">
+      <label>Formato do áudio</label>
+      <select id="aformat">
+        <option value="mp3">MP3 (mais usado)</option>
+        <option value="wav">WAV (sem perda)</option>
+        <option value="aac">AAC</option>
+        <option value="m4a">M4A</option>
+      </select>
+    </div>
+
+    <button class="btn" id="go" disabled>Processar</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="footer">Processamento privado · arquivos deletados em 10 minutos</div>
+</div>
+
+<script>
+var TOOLS = {
+  compress: {ico:'🗜', title:'Compressor de vídeo', desc:'Reduza o tamanho sem perder qualidade', endpoint:'/t/video/api/video/compress', btn:'Comprimir vídeo'},
+  cut:      {ico:'✂️', title:'Cortador por tempo', desc:'Corte um trecho exato do vídeo', endpoint:'/t/video/api/video/cut', btn:'Cortar vídeo'},
+  convert:  {ico:'🔄', title:'Conversor de formato', desc:'Converta entre MP4, MOV, WebM e mais', endpoint:'/t/video/api/video/convert', btn:'Converter vídeo'},
+  audio:    {ico:'🎵', title:'Extrator de áudio', desc:'Extraia o áudio do vídeo', endpoint:'/t/video/api/video/audio', btn:'Extrair áudio'}
+};
+function getTool(){ var p=new URLSearchParams(location.search).get('tool'); return TOOLS[p]?p:'compress'; }
+var current=getTool(), file=null;
+var t=TOOLS[current];
+document.getElementById('ico').textContent=t.ico;
+document.getElementById('title').textContent=t.title;
+document.getElementById('desc').textContent=t.desc;
+document.getElementById('go').textContent=t.btn;
+var tabs=document.querySelectorAll('.tab');
+for(var i=0;i<tabs.length;i++){ if(tabs[i].dataset.tool===current) tabs[i].classList.add('active'); }
+var opts=document.querySelectorAll('.tool-opt');
+for(var i=0;i<opts.length;i++){ opts[i].style.display = opts[i].dataset.for===current?'block':'none'; }
+
+var drop=document.getElementById('drop'), input=document.getElementById('fileInput');
+drop.onclick=function(){ input.click(); };
+input.onchange=function(){ if(input.files[0]) setFile(input.files[0]); };
+drop.ondragover=function(e){ e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave=function(){ drop.classList.remove('over'); };
+drop.ondrop=function(e){ e.preventDefault(); drop.classList.remove('over'); if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); };
+document.getElementById('fx').onclick=function(){ file=null; document.getElementById('fileinfo').className='fileinfo'; document.getElementById('go').disabled=true; };
+
+function setFile(f){
+  file=f;
+  document.getElementById('fname').textContent=f.name;
+  document.getElementById('fsize').textContent=fmtSize(f.size);
+  document.getElementById('fileinfo').className='fileinfo show';
+  document.getElementById('go').disabled=false;
+}
+function fmtSize(b){ if(b<1048576)return (b/1024).toFixed(0)+' KB'; if(b<1073741824)return (b/1048576).toFixed(1)+' MB'; return (b/1073741824).toFixed(2)+' GB'; }
+
+document.getElementById('go').onclick=function(){
+  if(!file) return;
+  var fd=new FormData();
+  fd.append('file', file);
+  if(current==='compress') fd.append('level', document.getElementById('level').value);
+  if(current==='cut'){ fd.append('start', document.getElementById('start').value); fd.append('end', document.getElementById('end').value); }
+  if(current==='convert') fd.append('format', document.getElementById('vformat').value);
+  if(current==='audio') fd.append('format', document.getElementById('aformat').value);
+
+  var status=document.getElementById('status');
+  status.className='status show';
+  status.innerHTML='<span class="spin"></span>Processando... isso pode levar alguns minutos';
+  document.getElementById('go').disabled=true;
+
+  fetch(t.endpoint,{method:'POST',body:fd})
+  .then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error(j.error||'Erro'); }); return r.blob(); })
+  .then(function(blob){
+    var url=URL.createObjectURL(blob);
+    var ext = current==='audio' ? document.getElementById('aformat').value
+            : current==='convert' ? document.getElementById('vformat').value : 'mp4';
+    var a=document.createElement('a'); a.href=url; a.download='resultado.'+ext;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    status.innerHTML='✅ Pronto! Download iniciado.';
+    document.getElementById('go').disabled=false;
+  })
+  .catch(function(e){ status.innerHTML='❌ '+e.message; document.getElementById('go').disabled=false; });
+};
+</script>
+</body>
+</html>
