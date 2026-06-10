@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Creativify — Editor de PDF</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{
+  --bg:#0a0a0d;--surface:#13131a;--surface2:#1c1c26;--border:#25253a;--border2:#32324a;
+  --text:#eeeef5;--text2:#8888aa;--text3:#5a5a72;--accent:#ff7a59;--accent-dim:#ff7a5915;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;}
+.back{position:fixed;top:16px;left:16px;z-index:50;color:var(--text2);text-decoration:none;font-weight:600;font-size:13px;background:var(--surface);border:1px solid var(--border);padding:8px 14px;border-radius:9px;}
+.back:hover{color:var(--text);}
+
+.tabs{display:flex;gap:6px;justify-content:center;padding:24px 16px 16px;flex-wrap:wrap;}
+.tab{font-size:13px;padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--text2);cursor:pointer;font-family:inherit;font-weight:500;text-decoration:none;}
+.tab.active{background:var(--accent);color:#1a0a04;border-color:var(--accent);font-weight:700;}
+
+.panel{max-width:920px;margin:0 auto;padding:0 16px 40px;}
+.head{text-align:center;margin-bottom:20px;}
+.head h1{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:5px;}
+.head p{font-size:13px;color:var(--text2);}
+
+/* simple tools (merge/split/compress) */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;max-width:560px;margin:0 auto 14px;}
+.drop{border:2px dashed var(--border2);border-radius:12px;padding:30px 20px;text-align:center;cursor:pointer;transition:.15s;}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-dim);}
+.drop .dico{font-size:28px;margin-bottom:8px;}
+.drop .dt{font-size:14px;font-weight:600;margin-bottom:4px;}
+.drop .ds{font-size:12px;color:var(--text3);}
+input[type=file]{display:none;}
+.files{margin-top:14px;display:flex;flex-direction:column;gap:6px;}
+.frow{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;}
+.frow .fn{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.frow .fx{cursor:pointer;color:var(--text3);font-size:15px;}
+.opt{margin-top:16px;}
+.opt label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);display:block;margin-bottom:7px;}
+select,input[type=text]{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:10px 12px;font-size:13px;color:var(--text);outline:none;font-family:inherit;}
+.hint{font-size:11px;color:var(--text3);margin-top:6px;}
+.btn{width:100%;background:var(--accent);color:#1a0a04;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;margin-top:18px;font-family:inherit;}
+.btn:hover{filter:brightness(1.08);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.status{margin-top:14px;text-align:center;font-size:13px;color:var(--text2);display:none;}
+.status.show{display:block;}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* editor */
+.editor-toolbar{position:sticky;top:0;z-index:40;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px;}
+.ebtn{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;}
+.ebtn:hover{border-color:var(--accent);}
+.ebtn.active{background:var(--accent);color:#1a0a04;border-color:var(--accent);}
+.ediv{width:1px;height:24px;background:var(--border2);margin:0 2px;}
+.ecolor{width:34px;height:34px;border:1px solid var(--border2);border-radius:8px;padding:0;cursor:pointer;background:none;}
+.esave{margin-left:auto;background:var(--accent);color:#1a0a04;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+.pages{display:flex;flex-direction:column;align-items:center;gap:16px;}
+.page-wrap{position:relative;box-shadow:0 4px 24px #0008;border-radius:4px;overflow:hidden;}
+.page-wrap canvas{display:block;}
+.overlay{position:absolute;inset:0;cursor:crosshair;}
+.ovitem{position:absolute;cursor:move;}
+.ovitem.text{font-family:Helvetica,Arial,sans-serif;white-space:pre;line-height:1.2;outline:1px dashed transparent;padding:2px;min-width:20px;}
+.ovitem.text:focus{outline:1px dashed var(--accent);}
+.ovitem.rect{border:2px solid;background:transparent;}
+.ovitem.img img{display:block;width:100%;height:100%;}
+.ovitem .del{position:absolute;top:-9px;right:-9px;width:18px;height:18px;background:#ff3b30;color:#fff;border-radius:50%;font-size:12px;line-height:18px;text-align:center;cursor:pointer;display:none;}
+.ovitem:hover .del{display:block;}
+.editor-empty{text-align:center;padding:50px 20px;color:var(--text2);}
+.editor-empty .drop{max-width:420px;margin:16px auto 0;}
+@media(max-width:600px){ .esave{margin-left:0;} }
+</style>
+</head>
+<body>
+<a class="back" href="/">← Voltar</a>
+
+<div class="tabs">
+  <a class="tab" data-tool="edit" href="?tool=edit">Editor</a>
+  <a class="tab" data-tool="merge" href="?tool=merge">Juntar</a>
+  <a class="tab" data-tool="split" href="?tool=split">Dividir</a>
+  <a class="tab" data-tool="compress" href="?tool=compress">Comprimir</a>
+</div>
+
+<div class="panel">
+  <!-- EDITOR -->
+  <div id="view-edit" style="display:none">
+    <div class="head"><h1>Editor de PDF</h1><p>Adicione texto, formas e imagens ao seu PDF</p></div>
+
+    <div id="editor-empty" class="editor-empty">
+      <div>Carregue um PDF para começar a editar</div>
+      <div class="drop" id="edrop">
+        <div class="dico">📄</div>
+        <div class="dt">Arraste um PDF ou clique aqui</div>
+        <div class="ds">Suas edições ficam só no seu navegador até salvar</div>
+      </div>
+      <input type="file" id="efile" accept="application/pdf">
+    </div>
+
+    <div id="editor-main" style="display:none">
+      <div class="editor-toolbar">
+        <button class="ebtn" id="t-select" data-mode="select">🖱 Selecionar</button>
+        <button class="ebtn" id="t-text" data-mode="text">🅣 Texto</button>
+        <button class="ebtn" id="t-rect" data-mode="rect">▭ Retângulo</button>
+        <button class="ebtn" id="t-img" data-mode="img">🖼 Imagem</button>
+        <div class="ediv"></div>
+        <input type="color" class="ecolor" id="ecolor" value="#111111" title="Cor">
+        <select id="esize" style="width:auto">
+          <option value="12">12 px</option>
+          <option value="16" selected>16 px</option>
+          <option value="20">20 px</option>
+          <option value="28">28 px</option>
+          <option value="40">40 px</option>
+        </select>
+        <button class="esave" id="esave">💾 Salvar PDF</button>
+      </div>
+      <input type="file" id="eimgfile" accept="image/*" style="display:none">
+      <div class="pages" id="pages"></div>
+      <div class="status" id="estatus" style="text-align:center;margin-top:16px"></div>
+    </div>
+  </div>
+
+  <!-- MERGE -->
+  <div id="view-merge" style="display:none">
+    <div class="head"><h1>Juntar PDFs</h1><p>Combine vários PDFs em um só</p></div>
+    <div class="card">
+      <div class="drop" id="mdrop"><div class="dico">🔗</div><div class="dt">Arraste PDFs ou clique</div><div class="ds">Mínimo 2 arquivos · na ordem que quiser unir</div></div>
+      <input type="file" id="mfile" accept="application/pdf" multiple>
+      <div class="files" id="mfiles"></div>
+      <button class="btn" id="mgo" disabled>Juntar PDFs</button>
+      <div class="status" id="mstatus"></div>
+    </div>
+  </div>
+
+  <!-- SPLIT -->
+  <div id="view-split" style="display:none">
+    <div class="head"><h1>Dividir PDF</h1><p>Extraia páginas específicas</p></div>
+    <div class="card">
+      <div class="drop" id="sdrop"><div class="dico">✂️</div><div class="dt">Arraste um PDF ou clique</div><div class="ds">Um arquivo</div></div>
+      <input type="file" id="sfile" accept="application/pdf">
+      <div class="files" id="sfiles"></div>
+      <div class="opt"><label>Páginas</label>
+        <input type="text" id="sranges" placeholder="Ex: 1-3, 5, 8-10">
+        <div class="hint">Deixe vazio para todas. Use vírgula e hífen.</div>
+      </div>
+      <button class="btn" id="sgo" disabled>Extrair páginas</button>
+      <div class="status" id="sstatus"></div>
+    </div>
+  </div>
+
+  <!-- COMPRESS -->
+  <div id="view-compress" style="display:none">
+    <div class="head"><h1>Comprimir PDF</h1><p>Deixe seu PDF mais leve</p></div>
+    <div class="card">
+      <div class="drop" id="cdrop"><div class="dico">🗜</div><div class="dt">Arraste um PDF ou clique</div><div class="ds">Um arquivo</div></div>
+      <input type="file" id="cfile" accept="application/pdf">
+      <div class="files" id="cfiles"></div>
+      <div class="opt"><label>Nível</label>
+        <select id="clevel">
+          <option value="screen">Máxima compressão (tela)</option>
+          <option value="ebook" selected>Equilibrado (e-book)</option>
+          <option value="printer">Alta qualidade (impressão)</option>
+        </select>
+      </div>
+      <button class="btn" id="cgo" disabled>Comprimir PDF</button>
+      <div class="status" id="cstatus"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+function tool(){ var p=new URLSearchParams(location.search).get('tool'); return ['edit','merge','split','compress'].indexOf(p)>-1?p:'edit'; }
+var current=tool();
+document.getElementById('view-'+current).style.display='block';
+var tabs=document.querySelectorAll('.tab');
+for(var i=0;i<tabs.length;i++) if(tabs[i].dataset.tool===current) tabs[i].classList.add('active');
+
+function fmtSize(b){ if(b<1048576)return (b/1024).toFixed(0)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function dl(blob,name){ var u=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u); }
+
+/* ---------- EDITOR ---------- */
+if(current==='edit'){
+  var edrop=document.getElementById('edrop'), efile=document.getElementById('efile');
+  var pdfFile=null, pdfScale=1.5, mode='select', pageDims=[];
+  edrop.onclick=function(){ efile.click(); };
+  efile.onchange=function(){ if(efile.files[0]) loadPdf(efile.files[0]); };
+  edrop.ondragover=function(e){ e.preventDefault(); edrop.classList.add('over'); };
+  edrop.ondragleave=function(){ edrop.classList.remove('over'); };
+  edrop.ondrop=function(e){ e.preventDefault(); edrop.classList.remove('over'); if(e.dataTransfer.files[0]) loadPdf(e.dataTransfer.files[0]); };
+
+  function setMode(m){
+    mode=m;
+    ['select','text','rect','img'].forEach(function(x){
+      document.getElementById('t-'+x).classList.toggle('active', x===m);
+    });
+    var ovs=document.querySelectorAll('.overlay');
+    for(var i=0;i<ovs.length;i++) ovs[i].style.cursor = (m==='select')?'default':'crosshair';
+  }
+  document.getElementById('t-select').onclick=function(){ setMode('select'); };
+  document.getElementById('t-text').onclick=function(){ setMode('text'); };
+  document.getElementById('t-rect').onclick=function(){ setMode('rect'); };
+  document.getElementById('t-img').onclick=function(){ setMode('img'); };
+
+  var pendingImgTarget=null;
+  var eimgfile=document.getElementById('eimgfile');
+  eimgfile.onchange=function(){
+    if(!eimgfile.files[0]||!pendingImgTarget) return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var box=pendingImgTarget;
+      box.dataset.imgdata=rd.result;
+      box.innerHTML='<img src="'+rd.result+'"><span class="del">×</span>';
+      attachDelete(box);
+    };
+    rd.readAsDataURL(eimgfile.files[0]);
+  };
+
+  async function loadPdf(file){
+    pdfFile=file;
+    document.getElementById('editor-empty').style.display='none';
+    document.getElementById('editor-main').style.display='block';
+    setMode('select');
+    var buf=await file.arrayBuffer();
+    var pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    var container=document.getElementById('pages');
+    container.innerHTML='';
+    pageDims=[];
+    for(var n=1;n<=pdf.numPages;n++){
+      var pageObj=await pdf.getPage(n);
+      var vp=pageObj.getViewport({scale:pdfScale});
+      var wrap=document.createElement('div');
+      wrap.className='page-wrap';
+      wrap.style.width=vp.width+'px'; wrap.style.height=vp.height+'px';
+      var cv=document.createElement('canvas');
+      cv.width=vp.width; cv.height=vp.height;
+      wrap.appendChild(cv);
+      var ov=document.createElement('div');
+      ov.className='overlay'; ov.dataset.page=(n-1);
+      wrap.appendChild(ov);
+      container.appendChild(wrap);
+      await pageObj.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+      // store unscaled dims (PDF points) for coordinate conversion
+      var vp1=pageObj.getViewport({scale:1});
+      pageDims[n-1]={w:vp1.width,h:vp1.height,sw:vp.width,sh:vp.height};
+      bindOverlay(ov);
+    }
+  }
+
+  function bindOverlay(ov){
+    ov.addEventListener('click', function(e){
+      if(mode==='select') return;
+      if(e.target!==ov) return; // only when clicking empty space
+      var rect=ov.getBoundingClientRect();
+      var x=e.clientX-rect.left, y=e.clientY-rect.top;
+      if(mode==='text') addText(ov,x,y);
+      else if(mode==='rect') addRect(ov,x,y);
+      else if(mode==='img') addImage(ov,x,y);
+    });
+  }
+
+  function attachDelete(box){
+    var del=box.querySelector('.del');
+    if(del) del.onclick=function(e){ e.stopPropagation(); box.remove(); };
+  }
+  function makeDraggable(box,ov){
+    box.addEventListener('mousedown',function(e){
+      if(mode!=='select') return;
+      if(e.target.classList.contains('del')) return;
+      if(box.classList.contains('text') && document.activeElement===box) return;
+      e.preventDefault();
+      var sx=e.clientX, sy=e.clientY;
+      var ox=parseFloat(box.style.left), oy=parseFloat(box.style.top);
+      function mv(ev){ box.style.left=(ox+ev.clientX-sx)+'px'; box.style.top=(oy+ev.clientY-sy)+'px'; }
+      function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); }
+      document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+    });
+  }
+
+  function addText(ov,x,y){
+    var box=document.createElement('div');
+    box.className='ovitem text';
+    box.contentEditable=true;
+    box.style.left=x+'px'; box.style.top=y+'px';
+    box.style.color=document.getElementById('ecolor').value;
+    box.style.fontSize=document.getElementById('esize').value+'px';
+    box.textContent='Digite aqui';
+    box.innerHTML+='<span class="del">×</span>';
+    ov.appendChild(box);
+    attachDelete(box); makeDraggable(box,ov);
+    setMode('select');
+    setTimeout(function(){ box.focus();
+      var range=document.createRange(); range.selectNodeContents(box);
+      var sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    },10);
+  }
+  function addRect(ov,x,y){
+    var box=document.createElement('div');
+    box.className='ovitem rect';
+    box.style.left=x+'px'; box.style.top=y+'px';
+    box.style.width='120px'; box.style.height='70px';
+    box.style.borderColor=document.getElementById('ecolor').value;
+    box.innerHTML='<span class="del">×</span>';
+    ov.appendChild(box);
+    attachDelete(box); makeDraggable(box,ov);
+    setMode('select');
+  }
+  function addImage(ov,x,y){
+    var box=document.createElement('div');
+    box.className='ovitem img';
+    box.style.left=x+'px'; box.style.top=y+'px';
+    box.style.width='160px'; box.style.height='120px';
+    ov.appendChild(box);
+    makeDraggable(box,ov);
+    pendingImgTarget=box;
+    eimgfile.value=''; eimgfile.click();
+    setMode('select');
+  }
+
+  document.getElementById('esave').onclick=async function(){
+    var status=document.getElementById('estatus');
+    status.className='status show'; status.innerHTML='<span class="spin"></span>Gerando PDF...';
+    var edits=[];
+    var overlays=document.querySelectorAll('.overlay');
+    for(var pi=0; pi<overlays.length; pi++){
+      var ov=overlays[pi];
+      var page=parseInt(ov.dataset.page);
+      var dim=pageDims[page];
+      var scaleX=dim.w/dim.sw, scaleY=dim.h/dim.sh; // screen px -> pdf points
+      var items=ov.querySelectorAll('.ovitem');
+      for(var ii=0; ii<items.length; ii++){
+        var it=items[ii];
+        var left=parseFloat(it.style.left), top=parseFloat(it.style.top);
+        var pdfX=left*scaleX;
+        if(it.classList.contains('text')){
+          var size=parseFloat(it.style.fontSize)*scaleY;
+          // text baseline: y from bottom; top is distance from top
+          var pdfY=dim.h-(top*scaleY)-size;
+          edits.push({type:'text',page:page,x:pdfX,y:pdfY,
+            text:(it.textContent||'').replace('×','').trim(),
+            size:size,color:rgbToHex(it.style.color)});
+        } else if(it.classList.contains('rect')){
+          var w=parseFloat(it.style.width)*scaleX, h=parseFloat(it.style.height)*scaleY;
+          var pdfY=dim.h-(top*scaleY)-h;
+          edits.push({type:'rect',page:page,x:pdfX,y:pdfY,w:w,h:h,color:rgbToHex(it.style.borderColor)});
+        } else if(it.classList.contains('img') && it.dataset.imgdata){
+          var w=parseFloat(it.style.width)*scaleX, h=parseFloat(it.style.height)*scaleY;
+          var pdfY=dim.h-(top*scaleY)-h;
+          edits.push({type:'image',page:page,x:pdfX,y:pdfY,w:w,h:h,data:it.dataset.imgdata});
+        }
+      }
+    }
+    var fd=new FormData();
+    fd.append('file',pdfFile);
+    fd.append('edits',JSON.stringify(edits));
+    try{
+      var r=await fetch('/t/pdf/api/pdf/edit',{method:'POST',body:fd});
+      if(!r.ok){ var j=await r.json(); throw new Error(j.error||'Erro'); }
+      var blob=await r.blob();
+      dl(blob,'editado.pdf');
+      status.innerHTML='✅ PDF salvo! Download iniciado.';
+    }catch(e){ status.innerHTML='❌ '+e.message; }
+  };
+
+  function rgbToHex(rgb){
+    if(!rgb) return '#111111';
+    if(rgb[0]==='#') return rgb;
+    var m=rgb.match(/\d+/g); if(!m) return '#111111';
+    return '#'+((1<<24)+(parseInt(m[0])<<16)+(parseInt(m[1])<<8)+parseInt(m[2])).toString(16).slice(1);
+  }
+}
+
+/* ---------- simple tools ---------- */
+function setupSimple(prefix, endpoint, multi, getExtra, outName){
+  var drop=document.getElementById(prefix+'drop');
+  var input=document.getElementById(prefix+'file');
+  var listBox=document.getElementById(prefix+'files');
+  var go=document.getElementById(prefix+'go');
+  var status=document.getElementById(prefix+'status');
+  var files=[];
+  if(!drop) return;
+  drop.onclick=function(){ input.click(); };
+  input.onchange=function(){ add(input.files); };
+  drop.ondragover=function(e){ e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave=function(){ drop.classList.remove('over'); };
+  drop.ondrop=function(e){ e.preventDefault(); drop.classList.remove('over'); add(e.dataTransfer.files); };
+  function add(fl){
+    for(var i=0;i<fl.length;i++){ if(fl[i].type==='application/pdf'){ if(multi) files.push(fl[i]); else files=[fl[i]]; } }
+    render();
+  }
+  function render(){
+    listBox.innerHTML='';
+    files.forEach(function(f,idx){
+      var row=document.createElement('div'); row.className='frow';
+      row.innerHTML='<span class="fn">'+esc(f.name)+'</span><span class="fsz">'+fmtSize(f.size)+'</span><span class="fx">×</span>';
+      row.querySelector('.fx').onclick=function(){ files.splice(idx,1); render(); };
+      listBox.appendChild(row);
+    });
+    go.disabled = multi ? files.length<2 : files.length<1;
+  }
+  go.onclick=function(){
+    var fd=new FormData();
+    if(multi){ files.forEach(function(f){ fd.append('files',f); }); }
+    else fd.append('file',files[0]);
+    if(getExtra) getExtra(fd);
+    status.className='status show'; status.innerHTML='<span class="spin"></span>Processando...';
+    go.disabled=true;
+    fetch(endpoint,{method:'POST',body:fd})
+    .then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error(j.error||'Erro'); }); return r.blob(); })
+    .then(function(blob){ dl(blob,outName); status.innerHTML='✅ Pronto! Download iniciado.'; go.disabled=false; })
+    .catch(function(e){ status.innerHTML='❌ '+e.message; go.disabled=false; });
+  };
+}
+if(current==='merge') setupSimple('m','/t/pdf/api/pdf/merge',true,null,'unido.pdf');
+if(current==='split') setupSimple('s','/t/pdf/api/pdf/split',false,function(fd){ fd.append('ranges',document.getElementById('sranges').value); },'paginas.pdf');
+if(current==='compress') setupSimple('c','/t/pdf/api/pdf/compress',false,function(fd){ fd.append('level',document.getElementById('clevel').value); },'comprimido.pdf');
+</script>
+</body>
+</html>

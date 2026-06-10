@@ -7,6 +7,7 @@ from tools.downloader import bp as downloader_bp
 from tools.metadata import bp as metadata_bp
 from tools.imaging import bp as imaging_bp
 from tools.video import bp as video_bp
+from tools.pdf_tools import bp as pdf_bp
 
 app = Flask(__name__)
 
@@ -18,6 +19,7 @@ app.register_blueprint(downloader_bp, url_prefix="/t/downloader")
 app.register_blueprint(metadata_bp, url_prefix="/t/metadata")
 app.register_blueprint(imaging_bp, url_prefix="/t/imaging")
 app.register_blueprint(video_bp, url_prefix="/t/video")
+app.register_blueprint(pdf_bp, url_prefix="/t/pdf")
 
 # Catalog used by the dashboard. `ready` = backend wired up and working.
 TOOLS = [
@@ -67,15 +69,18 @@ TOOLS = [
      "desc": "JPG, PNG, WebP, AVIF e mais", "icon": "FileImage"},
     # PDF
     {"id": "pcompress", "cat": "pdf", "name": "Compressor de PDF",
-     "desc": "Deixe seus PDFs mais leves para enviar", "icon": "Minimize2"},
+     "desc": "Deixe seus PDFs mais leves para enviar", "icon": "Minimize2",
+     "ready": True, "url": "/t/pdf/?tool=compress"},
     {"id": "pconvert", "cat": "pdf", "name": "PDF → Word/Excel",
      "desc": "Converta PDF em documentos editáveis", "icon": "FileOutput", "popular": True},
     {"id": "pmerge", "cat": "pdf", "name": "Juntar e dividir",
-     "desc": "Combine ou separe páginas de PDF", "icon": "Combine"},
+     "desc": "Combine ou separe páginas de PDF", "icon": "Combine",
+     "ready": True, "url": "/t/pdf/?tool=merge"},
     {"id": "psign", "cat": "pdf", "name": "Assinador",
      "desc": "Assine documentos digitalmente", "icon": "PenTool"},
     {"id": "pedit", "cat": "pdf", "name": "Editor completo",
-     "desc": "Edite texto, imagens e páginas do PDF", "icon": "Edit3", "popular": True},
+     "desc": "Edite texto, imagens e páginas do PDF", "icon": "Edit3",
+     "popular": True, "ready": True, "url": "/t/pdf/?tool=edit"},
     # IA
     {"id": "atranscribe", "cat": "ai", "name": "Transcritor",
      "desc": "Transforme áudio e vídeo em texto", "icon": "Mic", "popular": True},
