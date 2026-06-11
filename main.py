@@ -8,6 +8,7 @@ from tools.metadata import bp as metadata_bp
 from tools.imaging import bp as imaging_bp
 from tools.video import bp as video_bp
 from tools.pdf_tools import bp as pdf_bp
+from tools.bgremove import bp as bgremove_bp
 
 app = Flask(__name__)
 
@@ -20,6 +21,7 @@ app.register_blueprint(metadata_bp, url_prefix="/t/metadata")
 app.register_blueprint(imaging_bp, url_prefix="/t/imaging")
 app.register_blueprint(video_bp, url_prefix="/t/video")
 app.register_blueprint(pdf_bp, url_prefix="/t/pdf")
+app.register_blueprint(bgremove_bp, url_prefix="/t/bgremove")
 
 # Catalog used by the dashboard. `ready` = backend wired up and working.
 TOOLS = [
@@ -56,7 +58,8 @@ TOOLS = [
      "desc": "PNG, JPG e WebP menores sem perder nitidez", "icon": "Minimize2",
      "ready": True, "popular": True, "url": "/t/imaging/?tool=compress"},
     {"id": "ibg", "cat": "image", "name": "Removedor de fundo",
-     "desc": "Remova o fundo com um clique usando IA", "icon": "Wand2", "popular": True},
+     "desc": "Remova o fundo com um clique usando IA", "icon": "Wand2",
+     "popular": True, "ready": True, "url": "/t/bgremove/"},
     {"id": "iconvert", "cat": "image", "name": "Conversor universal",
      "desc": "Converta entre 200+ formatos de arquivo", "icon": "RefreshCw",
      "ready": True, "popular": True, "url": "/t/imaging/?tool=convert"},
