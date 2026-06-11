@@ -67,6 +67,12 @@ select,input[type=text]{width:100%;background:var(--surface2);border:1px solid v
 .ovitem.img img{display:block;width:100%;height:100%;}
 .ovitem .del{position:absolute;top:-9px;right:-9px;width:18px;height:18px;background:#ff3b30;color:#fff;border-radius:50%;font-size:12px;line-height:18px;text-align:center;cursor:pointer;display:none;}
 .ovitem:hover .del{display:block;}
+/* existing-text overlay (edit-text mode) */
+.wordbox{position:absolute;border:1px solid transparent;border-radius:2px;cursor:text;transition:background .1s;}
+.editmode .wordbox{border-color:rgba(255,122,89,.35);background:rgba(255,122,89,.08);}
+.wordbox:hover{background:rgba(255,122,89,.22);}
+.wordbox.editing{background:#fff;border-color:var(--accent);}
+.wordbox input{position:absolute;inset:0;border:none;background:#fff;color:#111;font-family:Helvetica,Arial,sans-serif;padding:0 2px;outline:none;width:100%;}
 .editor-empty{text-align:center;padding:50px 20px;color:var(--text2);}
 .editor-empty .drop{max-width:420px;margin:16px auto 0;}
 @media(max-width:600px){ .esave{margin-left:0;} }
@@ -100,6 +106,7 @@ select,input[type=text]{width:100%;background:var(--surface2);border:1px solid v
     <div id="editor-main" style="display:none">
       <div class="editor-toolbar">
         <button class="ebtn" id="t-select" data-mode="select">🖱 Selecionar</button>
+        <button class="ebtn" id="t-edittext" data-mode="edittext">✏️ Editar texto</button>
         <button class="ebtn" id="t-text" data-mode="text">🅣 Texto</button>
         <button class="ebtn" id="t-rect" data-mode="rect">▭ Retângulo</button>
         <button class="ebtn" id="t-img" data-mode="img">🖼 Imagem</button>
@@ -184,7 +191,7 @@ function dl(blob,name){ var u=URL.createObjectURL(blob); var a=document.createEl
 /* ---------- EDITOR ---------- */
 if(current==='edit'){
   var edrop=document.getElementById('edrop'), efile=document.getElementById('efile');
-  var pdfFile=null, pdfScale=1.5, mode='select', pageDims=[];
+  var pdfFile=null, pdfScale=1.5, mode='select', pageDims=[], pageWords=[];
   edrop.onclick=function(){ efile.click(); };
   efile.onchange=function(){ if(efile.files[0]) loadPdf(efile.files[0]); };
   edrop.ondragover=function(e){ e.preventDefault(); edrop.classList.add('over'); };
@@ -193,13 +200,17 @@ if(current==='edit'){
 
   function setMode(m){
     mode=m;
-    ['select','text','rect','img'].forEach(function(x){
+    ['select','edittext','text','rect','img'].forEach(function(x){
       document.getElementById('t-'+x).classList.toggle('active', x===m);
     });
     var ovs=document.querySelectorAll('.overlay');
-    for(var i=0;i<ovs.length;i++) ovs[i].style.cursor = (m==='select')?'default':'crosshair';
+    for(var i=0;i<ovs.length;i++){
+      ovs[i].style.cursor = (m==='select'||m==='edittext')?'default':'crosshair';
+      ovs[i].classList.toggle('editmode', m==='edittext');
+    }
   }
   document.getElementById('t-select').onclick=function(){ setMode('select'); };
+  document.getElementById('t-edittext').onclick=function(){ setMode('edittext'); };
   document.getElementById('t-text').onclick=function(){ setMode('text'); };
   document.getElementById('t-rect').onclick=function(){ setMode('rect'); };
   document.getElementById('t-img').onclick=function(){ setMode('img'); };
@@ -247,6 +258,75 @@ if(current==='edit'){
       pageDims[n-1]={w:vp1.width,h:vp1.height,sw:vp.width,sh:vp.height};
       bindOverlay(ov);
     }
+    // fetch existing words for in-place text editing
+    fetchWords();
+  }
+
+  async function fetchWords(){
+    try{
+      var fd=new FormData(); fd.append('file', pdfFile);
+      var r=await fetch('/t/pdf/api/pdf/text',{method:'POST',body:fd});
+      if(!r.ok) return;
+      var data=await r.json();
+      pageWords=data.pages||[];
+      renderWordBoxes();
+    }catch(e){ /* editing existing text just won't be available */ }
+  }
+
+  function renderWordBoxes(){
+    var overlays=document.querySelectorAll('.overlay');
+    for(var pi=0; pi<overlays.length; pi++){
+      var ov=overlays[pi];
+      var dim=pageDims[pi];
+      var pg=pageWords[pi];
+      if(!pg) continue;
+      var sx=dim.sw/dim.w, sy=dim.sh/dim.h; // pdf points -> screen px
+      for(var wi=0; wi<pg.words.length; wi++){
+        (function(word){
+          var b=document.createElement('div');
+          b.className='wordbox';
+          b.style.left=(word.x*sx)+'px';
+          b.style.top=((dim.h-word.y-word.h)*sy)+'px';
+          b.style.width=(word.w*sx)+'px';
+          b.style.height=(word.h*sy)+'px';
+          b.dataset.x=word.x; b.dataset.y=word.y; b.dataset.w=word.w; b.dataset.h=word.h;
+          b.dataset.orig=word.text;
+          b.title='Clique para editar: '+word.text;
+          b.onclick=function(e){
+            if(mode!=='edittext') return;
+            e.stopPropagation();
+            startEditWord(b);
+          };
+          ov.appendChild(b);
+        })(pg.words[wi]);
+      }
+    }
+  }
+
+  function startEditWord(b){
+    if(b.classList.contains('editing')) return;
+    b.classList.add('editing');
+    var fs=parseFloat(b.style.height)*0.8;
+    var inp=document.createElement('input');
+    inp.type='text';
+    inp.value=b.dataset.orig;
+    inp.style.fontSize=fs+'px';
+    b.innerHTML='';
+    b.appendChild(inp);
+    inp.focus(); inp.select();
+    function finish(){
+      var val=inp.value;
+      b.dataset.newtext = val;
+      b.classList.remove('editing');
+      b.innerHTML='';
+      if(val !== b.dataset.orig){
+        b.dataset.changed='1';
+        b.style.background='rgba(34,201,122,.18)';
+        b.title='Alterado: '+val;
+      }
+    }
+    inp.onblur=finish;
+    inp.onkeydown=function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); inp.blur(); } };
   }
 
   function bindOverlay(ov){
@@ -329,6 +409,21 @@ if(current==='edit'){
       var page=parseInt(ov.dataset.page);
       var dim=pageDims[page];
       var scaleX=dim.w/dim.sw, scaleY=dim.h/dim.sh; // screen px -> pdf points
+      // 1) existing-text replacements (Sejda-style redact)
+      var wboxes=ov.querySelectorAll('.wordbox');
+      for(var wb=0; wb<wboxes.length; wb++){
+        var box=wboxes[wb];
+        if(box.dataset.changed==='1'){
+          edits.push({
+            type:'redact', page:page,
+            x:parseFloat(box.dataset.x), y:parseFloat(box.dataset.y),
+            w:parseFloat(box.dataset.w), h:parseFloat(box.dataset.h),
+            text:box.dataset.newtext||'',
+            size:parseFloat(box.dataset.h)*0.85,
+            color:'#111111', bg:'#ffffff'
+          });
+        }
+      }
       var items=ov.querySelectorAll('.ovitem');
       for(var ii=0; ii<items.length; ii++){
         var it=items[ii];

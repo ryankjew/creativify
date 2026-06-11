@@ -15,6 +15,7 @@ from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
 from PIL import Image
+import pdfplumber
 
 bp = Blueprint("pdf", __name__)
 
@@ -48,6 +49,48 @@ def pdf_index():
     return render_template("pdf.html")
 
 
+# ---- Extract existing words with positions (for in-place text editing) ------
+@bp.route("/api/pdf/text", methods=["POST"])
+def pdf_text():
+    """
+    Returns every word in the PDF with its position in PDF points
+    (origin bottom-left, like reportlab). The editor uses this to let the
+    user click existing text, cover it, and type a replacement.
+    """
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"error": "Envie um PDF"}), 400
+    folder = new_workdir()
+    src = folder / "in.pdf"
+    f.save(str(src))
+
+    pages_out = []
+    try:
+        with pdfplumber.open(str(src)) as pdf:
+            for page in pdf.pages:
+                ph = float(page.height)
+                pw = float(page.width)
+                words = []
+                for w in page.extract_words(use_text_flow=True):
+                    top = float(w["top"])
+                    bottom = float(w["bottom"])
+                    words.append({
+                        "text": w["text"],
+                        "x": float(w["x0"]),
+                        # convert top-left -> bottom-left baseline area
+                        "y": ph - bottom,
+                        "w": float(w["x1"]) - float(w["x0"]),
+                        "h": bottom - top,
+                    })
+                pages_out.append({"w": pw, "h": ph, "words": words})
+    except Exception as e:
+        schedule_cleanup(folder)
+        return jsonify({"error": "Não foi possível ler o texto: " + str(e)[:120]}), 400
+
+    schedule_cleanup(folder)
+    return jsonify({"pages": pages_out})
+
+
 # ---- Editor: stamp edits onto the PDF ---------------------------------------
 @bp.route("/api/pdf/edit", methods=["POST"])
 def pdf_edit():
@@ -71,19 +114,48 @@ def pdf_edit():
     src = folder / "in.pdf"
     f.save(str(src))
 
-    try:
-        reader = PdfReader(str(src))
-    except Exception:
-        schedule_cleanup(folder)
-        return jsonify({"error": "Não foi possível ler o PDF"}), 400
-
-    n_pages = len(reader.pages)
-
     # group edits per page
     by_page = {}
     for e in edits:
         p = int(e.get("page", 0))
         by_page.setdefault(p, []).append(e)
+
+    # Step 1: physically remove text under any "redact" edit (true redaction,
+    # not just a cover box) using PyMuPDF. This makes the old text truly gone.
+    redacted_src = src
+    has_redact = any(e.get("type") == "redact" for e in edits)
+    if has_redact:
+        try:
+            import fitz  # PyMuPDF
+            doc = fitz.open(str(src))
+            for pidx, page_edits in by_page.items():
+                if pidx >= len(doc):
+                    continue
+                page = doc[pidx]
+                ph = page.rect.height
+                for e in page_edits:
+                    if e.get("type") != "redact":
+                        continue
+                    # convert bottom-left PDF coords -> PyMuPDF top-left rect
+                    x = float(e["x"]); y = float(e["y"])
+                    w = float(e["w"]); h = float(e["h"])
+                    rect = fitz.Rect(x, ph - y - h, x + w, ph - y)
+                    page.add_redact_annot(rect, fill=(1, 1, 1))
+                page.apply_redactions()
+            cleaned = folder / "cleaned.pdf"
+            doc.save(str(cleaned))
+            doc.close()
+            redacted_src = cleaned
+        except Exception:
+            redacted_src = src  # fall back to cover-box only
+
+    try:
+        reader = PdfReader(str(redacted_src))
+    except Exception:
+        schedule_cleanup(folder)
+        return jsonify({"error": "Não foi possível ler o PDF"}), 400
+
+    n_pages = len(reader.pages)
 
     writer = PdfWriter()
 
@@ -111,6 +183,22 @@ def pdf_edit():
                         for ln in lines:
                             c.drawString(float(e["x"]), ly, ln)
                             ly -= size * 1.2
+                    elif etype == "redact":
+                        # Sejda-style trick: cover old text with bg color, write new on top
+                        bg = e.get("bg", "#ffffff")
+                        c.setFillColor(HexColor(bg))
+                        c.setStrokeColor(HexColor(bg))
+                        pad = 1.0
+                        c.rect(float(e["x"]) - pad, float(e["y"]) - pad,
+                               float(e["w"]) + pad * 2, float(e["h"]) + pad * 2,
+                               fill=1, stroke=0)
+                        new_text = str(e.get("text", ""))
+                        if new_text:
+                            size = float(e.get("size", 12))
+                            c.setFillColor(HexColor(e.get("color", "#111111")))
+                            c.setFont("Helvetica", size)
+                            # write baseline a touch above the box bottom
+                            c.drawString(float(e["x"]), float(e["y"]) + max(1, float(e["h"]) * 0.18), new_text)
                     elif etype == "rect":
                         color = e.get("color", "#ff3b30")
                         c.setStrokeColor(HexColor(color))
