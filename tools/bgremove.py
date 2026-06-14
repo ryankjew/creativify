@@ -27,7 +27,7 @@ def get_session():
             if _session is None:
                 from rembg import new_session
                 # u2net = best quality; u2netp = lighter/faster
-                model = os.environ.get("REMBG_MODEL", "u2net")
+                model = os.environ.get("REMBG_MODEL", "u2netp")
                 _session = new_session(model)
     return _session
 

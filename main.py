@@ -11,6 +11,10 @@ from tools.pdf_tools import bp as pdf_bp
 from tools.bgremove import bp as bgremove_bp
 
 app = Flask(__name__)
+# Evita que o Railway sirva versões antigas dos templates/estáticos
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+app.jinja_env.auto_reload = True
 
 # Shared work area
 Path("/tmp/creativify").mkdir(parents=True, exist_ok=True)
